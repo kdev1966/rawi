@@ -4,7 +4,7 @@
 **Socle partagé** : embedkit — boîte à outils d'IA embarquée réutilisable entre projets *(nom de travail)*
 **Porteur** : Kaabaoui Othman — TPLUS INNOVATION
 **Version du document** : 1.1 — 13 novembre 2026
-**État du code** : v0.1 fonctionnelle, encore nommée `bdanim` dans le code (analyse + rendu motion comic, OpenCV/FFmpeg)
+**État du code** : v0.1 fonctionnelle (analyse + rendu motion comic, OpenCV/FFmpeg), M0 en cours
 
 ### Historique
 
@@ -99,7 +99,7 @@ C'est aussi la machine de travail du porteur : tout ce qui est annoncé comme fo
 | Machine | MacBook Pro 2015, Intel Core i7-4870HQ (x86_64, AVX2), sans GPU utile à l'inférence |
 | RAM | 16 Go |
 | OS | macOS 12.7.6 Monterey |
-| Python | 3.11 via **Miniforge / conda-forge** (Homebrew est mal supporté sur macOS 12) |
+| Python | 3.11 via **conda, canal conda-forge uniquement** (Miniforge, ou le Miniconda déjà installé ; jamais le canal `defaults` d'Anaconda). Environnement `rawi`. Voir ADR 0003 |
 
 ### Conséquences
 
@@ -282,7 +282,7 @@ Le texte lu est stocké **par bulle**, avec sa langue et son sens d'écriture, e
 
 ## 7. État actuel : v0.1 (livré)
 
-**Code** : `bdanim/analyze.py`, `bdanim/render.py`, `bdanim/__main__.py` (~400 lignes), dépendances NumPy, OpenCV et FFmpeg. Le code porte encore l'ancien nom ; il sera renommé en M0.
+**Code** : `rawi/analyze.py`, `rawi/render.py`, `rawi/__main__.py` (~400 lignes), dépendances NumPy, OpenCV et FFmpeg. Renommé de `bdanim` en `rawi` en M0, sans changement de résultat (vidéos identiques image par image).
 
 | Fonction | Implémentation |
 |---|---|
@@ -292,9 +292,9 @@ Le texte lu est stocké **par bulle**, avec sa langue et son sens d'écriture, e
 | Durée par case | `clamp(1.8 + pixels_texte / 2600, 2.2, 7.5)` secondes |
 | Rendu | Plan d'ensemble, puis transitions cubiques entre cases, zoom Ken Burns de 5 %, assombrissement des autres cases à 60 %, rebond des bulles, fond flouté ; cadre caméra minimal (50 % largeur, 20 % hauteur) |
 | Sortie | 9:16, 16:9, 1:1 ; 30 i/s ; `--apercu` en demi-résolution ; `--musique` |
-| CLI | `bdanim analyser`, `bdanim rendre`, `bdanim auto` |
+| CLI | `rawi analyser`, `rawi rendre`, `rawi auto` |
 
-**Résultats sur les 8 planches Qahwati** : épisodes de 25 à 43 s, environ 30 à 50 s de rendu par planche sur une machine Linux. Sur la machine de référence : **non mesuré** à ce jour.
+**Résultats sur les 8 planches Qahwati** : épisodes de 25 à 43 s. Mesuré sur la machine de référence : **25 à 43 s de rendu par planche** en 1080×1920 (4 min 44 s pour les 8, analyse comprise, pic de RAM < 800 Mo) ; 6 à 13 s par planche en `--apercu`.
 
 **Limites connues :**
 

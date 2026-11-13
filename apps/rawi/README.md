@@ -1,4 +1,4 @@
-# bdanim — redonner vie aux bandes dessinées
+# Rawi — redonner vie aux bandes dessinées
 
 Outil **100 % open source** (Apache 2.0) qui transforme des planches de BD (scans ou images) en **motion comic** prêt pour Reels / TikTok / YouTube.
 Aucune API payante, aucun abonnement : tout tourne en local, même sur un **MacBook 2015** (sans GPU).
@@ -20,16 +20,16 @@ Aucune API payante, aucun abonnement : tout tourne en local, même sur un **MacB
 ## Installation (macOS 12 Monterey, Mac Intel)
 
 ```bash
-cd bdanim
+cd apps/rawi
 ./installer_mac.sh
 ```
 
-Le script installe Miniforge (Python open source), puis OpenCV et FFmpeg dans un environnement isolé `bdanim`. Il ne touche pas au reste du système.
+Le script réutilise le conda déjà installé (Miniforge ou Miniconda), ou installe Miniforge s'il n'y en a pas. Il crée un environnement isolé `rawi` avec Python 3.11, OpenCV et FFmpeg, en prenant les paquets **uniquement sur conda-forge**. Il ne touche pas au reste du système.
 
 À chaque nouvelle fenêtre du Terminal :
 
 ```bash
-source ~/miniforge3/bin/activate && conda activate bdanim
+conda activate rawi
 ```
 
 *(Linux / Windows : `pip install -e .` + FFmpeg installé.)*
@@ -38,24 +38,26 @@ source ~/miniforge3/bin/activate && conda activate bdanim
 
 ```bash
 # Tout en une commande : analyse + une vidéo par planche
-bdanim auto pages/*.jpg
+rawi auto pages/*.jpg
 
 # Aperçu rapide (demi-résolution) pour tester le rythme
-bdanim auto pages/*.jpg --apercu
+rawi auto pages/*.jpg --apercu
 
 # En deux temps, avec vérification
-bdanim analyser pages/*.jpg -o projet.json      # → images dans controle/
+rawi analyser pages/*.jpg -o projet.json      # → images dans controle/
 #   … ouvrir controle/*.jpg, corriger projet.json si besoin …
-bdanim rendre projet.json --format 9:16 --musique fond.mp3
+rawi rendre projet.json --format 9:16 --musique fond.mp3
 
 # Une seule vidéo pour toutes les planches
-bdanim rendre projet.json --tout
+rawi rendre projet.json --tout
 
 # BD lue de droite à gauche (manga, certaines BD arabes)
-bdanim auto pages/*.jpg --rtl
+rawi auto pages/*.jpg --rtl
 ```
 
 Les vidéos sont dans `videos/` : `episode_01_9x16.mp4`, `episode_02_9x16.mp4`, …
+
+Les PDF ne sont pas encore lus directement : exportez d'abord les pages en PNG (par exemple avec Aperçu).
 
 ### Corriger un projet
 
@@ -69,19 +71,28 @@ Dans `projet.json`, chaque case ressemble à :
 - **ordre** : l'ordre des cases dans la liste = l'ordre de la caméra (déplacez un bloc pour le changer) ;
 - **`x, y, w, h`** : cadre de la case en pixels (à ajuster si une case est mal détectée).
 
-## Performances (MacBook 2015, CPU uniquement)
+## Performances mesurées
 
-Rendu en 1080×1920 : environ 1 à 2 minutes par planche. Avec `--apercu`, environ 4 fois plus rapide.
+MacBook Pro 2015 (i7-4870HQ, 16 Go, macOS 12.7.6), CPU uniquement, 8 planches Qahwati (épisodes de 25 à 43 s) :
+
+| Mode | Rendu par planche | Total (analyse + rendu) | Pic de RAM |
+|---|---|---|---|
+| 1080×1920 | 25 à 43 s | 4 min 44 s | < 800 Mo |
+| `--apercu` (540×960) | 6 à 13 s | 1 min 21 s | — |
 
 ## Feuille de route
 
-| Version | Contenu | Briques open source |
-|---|---|---|
-| **0.1** ✅ | Cases, ordre, bulles, caméra, rendu vidéo | OpenCV, FFmpeg |
-| 0.2 | Calques : effacement du texte, détourage, parallaxe 2.5D | LaMa, SAM 2 / BiRefNet, Depth Anything V2 Small |
-| 0.3 | Restauration des vieux scans, OCR, éditeur web de timeline | Real-ESRGAN, Tesseract / PaddleOCR |
-| 0.4 | Audio : voix importées, bruitages, sous-titres | FFmpeg, Whisper, sons CC0 |
-| 0.5 | Visages animés, plans génératifs (sur GPU externe) | LivePortrait, Wan 2.x |
+Détails et critères d'acceptation : `docs/PRD.md` §8.
+
+| Version | Contenu |
+|---|---|
+| **0.1** ✅ | Cases, ordre, bulles, caméra, rendu vidéo |
+| M0 | Fondations : renommage, embedkit, tests, CI, format de projet v2 |
+| 0.2 | Bulles qui apparaissent quand on les lit, lecture du texte arabe et français, sous-titres |
+| 0.3 | Calques, parallaxe 2.5D, détourage automatique ou par clics, éditeur web local |
+| 0.4 | Mise en scène par un modèle vision-langage local |
+| 0.5 | Audio : voix importées, bruitages, musique |
+| 0.6 | Restauration des vieux scans |
 
 ## Licence
 

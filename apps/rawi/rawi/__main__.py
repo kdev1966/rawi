@@ -43,7 +43,7 @@ def cmd_rendre(a, projet=None):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(prog="bdanim", description="Transformer des planches de BD en motion comic.")
+    ap = argparse.ArgumentParser(prog="rawi", description="Transformer des planches de BD en motion comic.")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     def opts_analyse(p):

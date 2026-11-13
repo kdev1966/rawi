@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "bdanim"
+name = "rawi"
 version = "0.1.0"
 description = "Redonner vie aux bandes dessinées : planches → motion comic (100 % open source)"
 readme = "README.md"
@@ -12,7 +12,7 @@ requires-python = ">=3.9"
 dependencies = ["numpy", "opencv-python-headless"]
 
 [project.scripts]
-bdanim = "bdanim.__main__:main"
+rawi = "rawi.__main__:main"
 
 [tool.setuptools]
-packages = ["bdanim"]
+packages = ["rawi"]

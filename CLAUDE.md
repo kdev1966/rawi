@@ -4,15 +4,15 @@ Lis d'abord `docs/PRD.md` : c'est la source de vérité du projet. En cas de dou
 
 ## Le projet en une phrase
 
-**bdanim** transforme des planches de BD en vidéos motion comic. Il s'appuie sur **embedkit**, une bibliothèque d'IA embarquée réutilisable par d'autres projets. Tout est open source, local et hors ligne, sans API payante ni serveur tiers.
+**Rawi** transforme des planches de BD en vidéos motion comic. Il s'appuie sur **embedkit**, une bibliothèque d'IA embarquée réutilisable par d'autres projets. Tout est open source, local et hors ligne, sans API payante ni serveur tiers.
 
 ## Contraintes non négociables
 
 1. **Pas de service externe** : ni API payante, ni Ollama, ni LM Studio, ni cloud. L'inférence se fait en processus (ONNX Runtime, OpenCV DNN, llama.cpp, whisper.cpp, stable-diffusion.cpp).
 2. **Pas de PyTorch ni de transformers à l'exécution.** Ils sont autorisés uniquement dans `tools/convert/` pour convertir des modèles en ONNX.
-3. **Machine de référence** : MacBook Pro 2015, Intel x86_64, 16 Go de RAM, macOS 12.7.6, sans GPU, Python 3.11 via Miniforge/conda-forge. Tout ce qui est par défaut doit y tourner.
+3. **Machine de référence** : MacBook Pro 2015, Intel x86_64, 16 Go de RAM, macOS 12.7.6, sans GPU, Python 3.11 via conda, canal conda-forge uniquement (environnement `rawi`). Tout ce qui est par défaut doit y tourner.
 4. **Licences** : toute nouvelle dépendance ou tout nouveau modèle doit avoir une licence compatible avec un usage commercial (Apache 2.0, MIT, BSD…). Déclare-la dans le manifeste du modèle. En cas de doute : `commercial: unknown`, et signale-le.
-5. **Dépendances** : `embedkit` ne dépend jamais de `bdanim`. N'ajoute aucune dépendance Python lourde sans justification dans un ADR (`docs/adr/`).
+5. **Dépendances** : `embedkit` ne dépend jamais de `rawi`. N'ajoute aucune dépendance Python lourde sans justification dans un ADR (`docs/adr/`).
 6. **Le classique d'abord** : propose une solution OpenCV/NumPy (niveau 0) avant un modèle. Chaque tâche IA doit avoir un repli de niveau 0.
 
 ## Conventions
@@ -21,15 +21,15 @@ Lis d'abord `docs/PRD.md` : c'est la source de vérité du projet. En cas de dou
 - Python 3.11, annotations de types, `ruff` (lint et format), docstrings courtes.
 - Images en NumPy `HxWx3 uint8` (BGR côté OpenCV, à convertir explicitement aux frontières des modèles).
 - Toute étape longue affiche une progression et écrit ses sorties dans le dossier projet (cache par hash des entrées).
-- Le format `projet.json` est versionné. Toute modification passe par une migration dans `bdanim/project.py`.
+- Le format `projet.json` est versionné. Toute modification passe par une migration dans `rawi/project.py`.
 
 ## Commandes utiles
 
 ```bash
-source ~/miniforge3/bin/activate && conda activate bdanim
+conda activate rawi                         # conda-forge seul (Miniconda Homebrew sur la machine de référence)
 pytest -q                                   # tests
 ruff check . && ruff format --check .       # qualité
-bdanim auto apps/bdanim/tests/fixtures/qahwati/*.jpg --apercu   # test de bout en bout rapide
+rawi auto apps/rawi/tests/fixtures/qahwati/*.jpg --apercu   # test de bout en bout rapide
 embedkit models list | pull | verify | bench        # (à partir de M0)
 ```
 
