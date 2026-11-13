@@ -1,4 +1,4 @@
-"""Command line: `embedkit hardware`, `embedkit models list|pull|verify`, `embedkit licenses audit`."""
+"""Command line: `embedkit hardware`, `embedkit models list|pull|verify|bench`, `embedkit licenses audit`."""
 
 from __future__ import annotations
 
@@ -102,6 +102,49 @@ def cmd_audit(_a, reg: Registry) -> int:
     return 1 if any(r[3] != "commerciale" for r in rows) else 0
 
 
+def cmd_bench(a, reg: Registry) -> int:
+    from .bench import run_isolated
+
+    models = (
+        [reg.get(i) for i in a.ids]
+        if a.ids
+        else [m for m in reg if store.is_installed(m)]
+    )
+    if not models:
+        print("Aucun modèle installé à mesurer (voir « embedkit models pull »).")
+        return 0
+    rows, failed = [], 0
+    for m in models:
+        if not store.is_installed(m):
+            rows.append([m.id, "—", "—", "—", "—", "non installé"])
+            failed += 1
+            continue
+        print(f"→ mesure de {m.id}…", file=sys.stderr)
+        r = run_isolated(m, a.runs, a.engine, a.models_path)
+        if "error" in r:
+            rows.append([m.id, "—", "—", "—", "—", r["error"][:80]])
+            failed += 1
+        else:
+            ram = f"{r['peak_ram_mb']:g} Mo" if r["peak_ram_mb"] is not None else "?"
+            shape = "×".join(map(str, r["input"]))
+            rows.append(
+                [
+                    m.id,
+                    r["engine"],
+                    f"{r['load_s']:g} s",
+                    f"{r['infer_ms']:g} ms",
+                    ram,
+                    f"entrée {shape}",
+                ]
+            )
+    print(
+        _table(
+            rows, ["modèle", "moteur", "chargement", "inférence", "pic RAM", "remarque"]
+        )
+    )
+    return 1 if failed else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         prog="embedkit", description="Gérer les modèles d'IA embarquée."
@@ -137,6 +180,18 @@ def main(argv: list[str] | None = None) -> int:
                 help="accepter un modèle sans licence commerciale",
             )
         p.set_defaults(func=func)
+
+    bench = models.add_parser(
+        "bench", help="mesurer temps et mémoire des modèles installés"
+    )
+    bench.add_argument("ids", nargs="*")
+    bench.add_argument(
+        "--runs", type=int, default=5, help="nombre d'inférences mesurées"
+    )
+    bench.add_argument(
+        "--engine", default="auto", choices=["auto", "onnxruntime", "opencv"]
+    )
+    bench.set_defaults(func=cmd_bench)
 
     lic = sub.add_parser("licenses", help="licences des modèles").add_subparsers(
         dest="action", required=True

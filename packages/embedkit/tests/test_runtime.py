@@ -1,0 +1,235 @@
+"""Tests for the ONNX runtime, the depth task and the bench (tiny generated models, no network)."""
+
+from __future__ import annotations
+
+import hashlib
+import sys
+from pathlib import Path
+
+import numpy as np
+import onnx
+import pytest
+import yaml
+from onnx import TensorProto, helper
+
+from embedkit import EmbedkitError, licenses, store
+from embedkit.bench import measure, run_isolated
+from embedkit.cli import main
+from embedkit.registry import Registry
+from embedkit.runtimes.onnx import OnnxModel, RuntimeLoadError
+from embedkit.tasks import DepthEstimator, resolve_model
+
+REAL_CACHE = Path.home() / ".cache" / "embedkit"
+
+
+def toy_depth_model(path: Path) -> Path:
+    """[1,3,H,W] -> mean over channels -> [1,H,W]: brighter = 'closer' (disparity)."""
+    x = helper.make_tensor_value_info(
+        "pixel_values", TensorProto.FLOAT, [1, 3, "h", "w"]
+    )
+    y = helper.make_tensor_value_info(
+        "predicted_depth", TensorProto.FLOAT, [1, "h", "w"]
+    )
+    node = helper.make_node(
+        "ReduceMean", ["pixel_values"], ["predicted_depth"], axes=[1], keepdims=0
+    )
+    graph = helper.make_graph([node], "toy_depth", [x], [y])
+    model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 13)])
+    model.ir_version = 8
+    onnx.save(model, path)
+    return path
+
+
+def install_toy(
+    folder: Path, model_id: str = "toy-depth", commercial=True, tier: int = 1
+) -> str:
+    """Write a manifest for the toy model and place the file in the (isolated) cache."""
+    src = toy_depth_model(folder / f"{model_id}.onnx")
+    data = {
+        "id": model_id,
+        "task": "depth",
+        "tier": tier,
+        "runtime": "onnx",
+        "source": {"repo": "org/toy", "file": "model.onnx", "revision": "b" * 40},
+        "sha256": hashlib.sha256(src.read_bytes()).hexdigest(),
+        "size_mb": 0.001,
+        "license": {"code": "MIT", "weights": "MIT", "commercial": commercial},
+        "io": {
+            "input": {
+                "name": "pixel_values",
+                "size": 28,
+                "mean": [0, 0, 0],
+                "std": [1, 1, 1],
+            }
+        },
+    }
+    (folder / f"{model_id}.yaml").write_text(yaml.safe_dump(data), encoding="utf-8")
+    m = Registry([folder], include_builtin=False).get(model_id)
+    dest = store.model_path(m)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(src.read_bytes())
+    return model_id
+
+
+@pytest.fixture(autouse=True)
+def isolated(tmp_path, monkeypatch):
+    monkeypatch.setenv(store.ENV_CACHE, str(tmp_path / "cache"))
+    monkeypatch.setenv(
+        store.ENV_OFFLINE, "1"
+    )  # nothing in these tests may touch the network
+    for var in ("EMBEDKIT_MODELS_PATH", licenses.ENV_ALLOW):
+        monkeypatch.delenv(var, raising=False)
+
+
+@pytest.fixture
+def models(tmp_path) -> Path:
+    folder = tmp_path / "models"
+    folder.mkdir()
+    return folder
+
+
+def image_with_bright_bottom(h: int = 60, w: int = 40) -> np.ndarray:
+    img = np.full((h, w, 3), 30, np.uint8)
+    img[h // 2 :] = 220
+    return img
+
+
+# --- runtime ------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("engine", ["onnxruntime", "opencv", "auto"])
+def test_engines_agree(tmp_path, engine):
+    path = toy_depth_model(tmp_path / "m.onnx")
+    x = np.random.default_rng(1).standard_normal((1, 3, 8, 6)).astype(np.float32)
+    with OnnxModel(path, engine) as model:
+        out = model.run(x)[0]
+        assert model.engine == ("onnxruntime" if engine == "auto" else engine)
+    assert np.allclose(np.squeeze(out), x.mean(axis=1)[0], atol=1e-5)
+    assert model.engine is None  # closed
+
+
+def test_fallback_to_opencv_when_onnxruntime_missing(tmp_path, monkeypatch, capsys):
+    monkeypatch.setitem(sys.modules, "onnxruntime", None)  # import fails
+    model = OnnxModel(toy_depth_model(tmp_path / "m.onnx")).load()
+    assert model.engine == "opencv"
+    assert "repli sur OpenCV DNN" in capsys.readouterr().err
+
+
+def test_unloadable_model(tmp_path):
+    bad = tmp_path / "bad.onnx"
+    bad.write_bytes(b"not onnx")
+    with pytest.raises(RuntimeLoadError, match="Impossible de charger"):
+        OnnxModel(bad).load()
+    with pytest.raises(RuntimeLoadError, match="introuvable"):
+        OnnxModel(tmp_path / "missing.onnx").load()
+
+
+def test_lazy_loading(tmp_path):
+    model = OnnxModel(toy_depth_model(tmp_path / "m.onnx"))
+    assert model.engine is None
+    model.run(np.zeros((1, 3, 4, 4), np.float32))
+    assert model.engine == "onnxruntime"
+
+
+# --- model choice -------------------------------------------------------------------
+
+
+def test_resolve_model(models):
+    install_toy(models)
+    install_toy(models, "nc-depth", commercial=False, tier=2)
+    reg = Registry([models], include_builtin=False)
+    assert resolve_model("depth", tier=2, registry=reg).id == "toy-depth"  # nc skipped
+    assert (
+        resolve_model("depth", tier=2, registry=reg, allow_noncommercial=True).id
+        == "nc-depth"
+    )
+    assert resolve_model("depth", tier=0, registry=reg) is None
+    with pytest.raises(licenses.LicenseError):
+        resolve_model("depth", model="nc-depth", registry=reg)
+    with pytest.raises(EmbedkitError, match="sert à la tâche"):
+        resolve_model("ocr", model="toy-depth", registry=reg)
+
+
+def test_offline_skips_models_not_installed(models):
+    install_toy(models)
+    reg = Registry([models], include_builtin=False)
+    store.model_path(reg.get("toy-depth")).unlink()
+    assert resolve_model("depth", tier=1, registry=reg) is None
+
+
+# --- depth task ---------------------------------------------------------------------
+
+
+def test_depth_with_model(models):
+    install_toy(models)
+    img = image_with_bright_bottom()
+    with DepthEstimator.load(
+        tier=1, registry=Registry([models], include_builtin=False)
+    ) as est:
+        assert est.tier == 1
+        d = est(img)
+    assert d.shape == img.shape[:2] and d.dtype == np.float32
+    assert 0.0 <= d.min() and d.max() <= 1.0
+    assert d[-5:].mean() > 0.9 and d[:5].mean() < 0.1  # bright bottom = closest
+
+
+def test_depth_classic_tier0():
+    est = DepthEstimator.load(tier=0, registry=Registry(include_builtin=False))
+    d = est(np.zeros((10, 4, 3), np.uint8))
+    assert est.tier == 0 and d[0, 0] == 0.0 and d[-1, 0] == 1.0
+
+
+def test_depth_rejects_bad_image(models):
+    install_toy(models)
+    est = DepthEstimator.load(
+        tier=1, registry=Registry([models], include_builtin=False)
+    )
+    with pytest.raises(ValueError):
+        est(np.zeros((10, 10), np.uint8))
+
+
+# --- bench --------------------------------------------------------------------------
+
+
+def test_bench_in_process_and_isolated(models):
+    install_toy(models)
+    m = Registry([models], include_builtin=False).get("toy-depth")
+    r = measure(m, runs=3)
+    assert (
+        r["engine"] == "onnxruntime"
+        and r["infer_ms"] >= 0
+        and r["input"] == [1, 3, 28, 28]
+    )
+    r = run_isolated(m, runs=2, models_path=[str(models)])
+    assert "error" not in r and r["peak_ram_mb"] > 0
+
+
+def test_cli_bench(models, capsys):
+    install_toy(models)
+    assert main(["--models-path", str(models), "models", "bench", "--runs", "2"]) == 0
+    out = capsys.readouterr().out
+    assert "toy-depth" in out and "onnxruntime" in out
+
+
+# --- real model (local only) --------------------------------------------------------
+
+
+def _real_depth_installed() -> bool:
+    try:
+        m = Registry().get("depth-anything-v2-small")
+    except EmbedkitError:
+        return False
+    return (REAL_CACHE / m.id / m.source.revision[:12] / m.filename).is_file()
+
+
+@pytest.mark.skipif(
+    not _real_depth_installed(),
+    reason="Depth Anything V2 Small non installé (embedkit models pull)",
+)
+def test_real_depth_anything(monkeypatch):
+    monkeypatch.setenv(store.ENV_CACHE, str(REAL_CACHE))
+    img = image_with_bright_bottom(200, 150)
+    img[: img.shape[0] // 2] = 30
+    with DepthEstimator.load(model="depth-anything-v2-small") as est:
+        d = est(img)
+    assert d.shape == (200, 150) and np.isfinite(d).all()
