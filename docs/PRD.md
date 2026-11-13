@@ -151,8 +151,8 @@ rawi/
 │       │   │   ├── vlm.py             # image + texte → texte / JSON — v0.4
 │       │   │   └── asr.py             # v0.5
 │       │   ├── bench.py           # micro-benchmarks (temps, RAM) par modèle
-│       │   └── cli.py             # `embedkit models list|pull|verify|bench`
-│       ├── models/                # manifestes YAML (un par modèle)
+│       │   ├── cli.py             # `embedkit hardware`, `models list|pull|verify|bench`, `licenses audit`
+│       │   └── models/            # manifestes YAML livrés (un par modèle), installés avec le paquet
 │       └── tests/
 ├── apps/
 │   └── rawi/
@@ -179,7 +179,7 @@ rawi/
 
 ### 6.2 embedkit — spécification
 
-#### Manifeste de modèle (`models/<id>.yaml`)
+#### Manifeste de modèle (`embedkit/models/<id>.yaml`)
 
 ```yaml
 id: migan-512
