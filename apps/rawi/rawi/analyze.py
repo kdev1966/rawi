@@ -1,7 +1,6 @@
 """Analyse d'une planche : cases, ordre de lecture, bulles.
 Dépendances : numpy + OpenCV uniquement (tourne sur CPU, Mac Intel OK)."""
 
-import json
 import math
 
 import cv2
@@ -215,8 +214,3 @@ def draw_debug(project, out_path):
             4,
         )
     cv2.imwrite(out_path, img)
-
-
-def save(project, path):
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(project, f, ensure_ascii=False, indent=2)

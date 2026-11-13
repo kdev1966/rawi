@@ -1,10 +1,10 @@
 import argparse
-import json
 import os
 import sys
 import time
 
-from .analyze import analyze, draw_debug, save
+from . import project
+from .analyze import analyze, draw_debug
 from .render import FORMATS, render
 from .sources import InputError, expand_inputs
 
@@ -23,8 +23,8 @@ def cmd_analyser(a):
         print(
             f"✓ {os.path.basename(img)} : {len(page['panels'])} cases, {nb} bulles  → {dbg}"
         )
-    projet = {"version": 1, "rtl": a.rtl, "pages": pages}
-    save(projet, a.sortie)
+    projet = project.new_project(pages, a.rtl)
+    project.save(projet, a.sortie)
     print(f"\nProjet enregistré : {a.sortie}")
     print(
         "Vérifiez les images de contrôle, corrigez le JSON si besoin (ordre, durées), puis lancez « rendre »."
@@ -34,8 +34,7 @@ def cmd_analyser(a):
 
 def cmd_rendre(a, projet=None):
     if projet is None:
-        with open(a.projet, encoding="utf-8") as f:
-            projet = json.load(f)
+        projet = project.load(a.projet)
     os.makedirs(a.dossier, exist_ok=True)
     scale = 0.5 if a.apercu else 1.0
     groupes = [[p] for p in projet["pages"]] if not a.tout else [projet["pages"]]
@@ -114,7 +113,7 @@ def main(argv=None):
             cmd_rendre(a)
         else:
             cmd_rendre(a, cmd_analyser(a))
-    except InputError as exc:
+    except (InputError, project.ProjectError) as exc:
         print(f"Erreur : {exc}", file=sys.stderr)
         return 2
 

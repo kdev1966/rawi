@@ -8,6 +8,8 @@ import subprocess
 import cv2
 import numpy as np
 
+from .project import bubble_reading_order
+
 FORMATS = {"9:16": (1080, 1920), "16:9": (1920, 1080), "1:1": (1080, 1080)}
 
 
@@ -100,12 +102,7 @@ def frames(page, fmt="9:16", fps=30, scale=1.0):
         # 2) maintien avec léger zoom avant (Ken Burns) + projecteur + pop des bulles
         n = int(shot["hold"] * fps)
         p = shot["panel"]
-        sgn = -1 if page.get("rtl") else 1
-        bubbles = (
-            sorted(p["bubbles"], key=lambda b: (b["y"] // 60, sgn * b["x"]))
-            if p
-            else []
-        )
+        bubbles = _ordered_bubbles(p["bubbles"], page.get("rtl", False)) if p else []
         for f in range(n):
             t = f / max(n - 1, 1)
             M, _ = _matrix(
@@ -118,6 +115,13 @@ def frames(page, fmt="9:16", fps=30, scale=1.0):
                 _bubble_pop(fr, img, M, b, sec - 0.25 - k * 0.9)
             yield fr
         prev = shot
+
+
+def _ordered_bubbles(bubbles, rtl):
+    """Bubbles in reading order: the project's explicit ``order`` (v2), else the v0.1 rule."""
+    if bubbles and all("order" in b for b in bubbles):
+        return sorted(bubbles, key=lambda b: b["order"])
+    return bubble_reading_order(bubbles, rtl)
 
 
 def _compose(img, bg, M, W, H, panel, dim):
