@@ -16,26 +16,6 @@ from rawi.__main__ import main
 QAHWATI = Path(__file__).parent / "fixtures" / "qahwati"
 
 
-def comic_page(w: int = 1200, h: int = 1600) -> np.ndarray:
-    """Synthetic BGR page: white background, 2x2 framed panels with some drawing."""
-    img = np.full((h, w, 3), 255, np.uint8)
-    margin, gutter = 40, 40
-    pw, ph = (w - 2 * margin - gutter) // 2, (h - 2 * margin - gutter) // 2
-    rng = np.random.default_rng(0)
-    for row in range(2):
-        for col in range(2):
-            x, y = margin + col * (pw + gutter), margin + row * (ph + gutter)
-            cv2.rectangle(img, (x, y), (x + pw, y + ph), (0, 0, 0), 6)
-            for _ in range(12):
-                c = tuple(int(v) for v in rng.integers(0, 200, 3))
-                p = (
-                    int(x + rng.integers(20, pw - 20)),
-                    int(y + rng.integers(20, ph - 20)),
-                )
-                cv2.circle(img, p, int(rng.integers(10, 60)), c, -1)
-    return img
-
-
 def make_scan_pdf(
     path: Path, pages: list[np.ndarray | Path], page_pt: tuple[float, float]
 ) -> None:
@@ -95,7 +75,7 @@ def test_parse_pages_errors(spec):
 # --- rendering ----------------------------------------------------------------------
 
 
-def test_scan_rendered_at_native_resolution(tmp_path):
+def test_scan_rendered_at_native_resolution(tmp_path, comic_page):
     page = comic_page(900, 1200)
     pdf = tmp_path / "scan.pdf"
     make_scan_pdf(pdf, [page], (540, 720))  # 900 px on 540 pt -> 120 dpi
@@ -143,7 +123,7 @@ def test_unreadable_pdf(tmp_path):
         sources.pdf_to_images(str(bad), str(tmp_path / "pages"))
 
 
-def test_expand_inputs_mixes_images_and_pdfs(tmp_path):
+def test_expand_inputs_mixes_images_and_pdfs(tmp_path, comic_page):
     img = tmp_path / "a.png"
     cv2.imwrite(str(img), comic_page(300, 400))
     pdf = tmp_path / "b.pdf"
@@ -155,7 +135,7 @@ def test_expand_inputs_mixes_images_and_pdfs(tmp_path):
 # --- end to end ---------------------------------------------------------------------
 
 
-def test_cli_analyser_on_pdf(tmp_path, monkeypatch):
+def test_cli_analyser_on_pdf(tmp_path, monkeypatch, comic_page):
     monkeypatch.chdir(tmp_path)
     make_scan_pdf(tmp_path / "album.pdf", [comic_page(), comic_page()], (600, 800))
     assert main(["analyser", "album.pdf", "--pages", "2"]) in (None, 0)

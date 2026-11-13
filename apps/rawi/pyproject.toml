@@ -8,8 +8,8 @@ version = "0.1.0"
 description = "Redonner vie aux bandes dessinées : planches → motion comic (100 % open source)"
 readme = "README.md"
 license = {text = "Apache-2.0"}
-requires-python = ">=3.9"
-dependencies = ["numpy", "opencv-python-headless", "pypdfium2"]
+requires-python = ">=3.10"
+dependencies = ["embedkit", "numpy", "opencv-python-headless", "pypdfium2"]
 
 [project.scripts]
 rawi = "rawi.__main__:main"

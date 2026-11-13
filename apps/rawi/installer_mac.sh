@@ -4,6 +4,7 @@
 # Les paquets viennent uniquement de conda-forge (pas du canal « defaults » d'Anaconda).
 set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$DIR/../.." && pwd)"
 
 if command -v conda >/dev/null 2>&1; then
   CONDA_BASE="$(conda info --base)"
@@ -22,11 +23,13 @@ source "$CONDA_BASE/etc/profile.d/conda.sh"
 if conda env list | grep -qE '^rawi[[:space:]]'; then
   echo "→ L'environnement « rawi » existe déjà."
 else
-  echo "→ Création de l'environnement « rawi » (Python, OpenCV, FFmpeg, lecture des PDF)…"
-  conda create -y -n rawi --override-channels -c conda-forge python=3.11 numpy opencv ffmpeg pypdfium2
+  echo "→ Création de l'environnement « rawi » (Python, OpenCV, FFmpeg, PDF, ONNX Runtime)…"
+  conda create -y -n rawi --override-channels -c conda-forge python=3.11 numpy opencv ffmpeg pypdfium2 pyyaml onnxruntime
 fi
 conda activate rawi
-conda install -y -q -n rawi --override-channels -c conda-forge pypdfium2  # ajouté après la v0.1
+# paquets ajoutés après la v0.1 (sans effet s'ils sont déjà là)
+conda install -y -q -n rawi --override-channels -c conda-forge pypdfium2 pyyaml onnxruntime
+pip install --no-deps -e "$ROOT/packages/embedkit"
 pip install --no-deps -e "$DIR"
 
 echo

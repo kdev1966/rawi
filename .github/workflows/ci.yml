@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff
+      - run: ruff check .
+      - run: ruff format --check .
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        # GitHub no longer offers Intel macOS runners: the reference Mac (Intel, macOS 12)
+        # is checked by hand, macos-latest (Apple Silicon) covers the macOS code paths.
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: FFmpeg (smoke render test)
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+          else brew install ffmpeg; fi
+      - name: Install packages
+        run: |
+          pip install numpy opencv-python-headless pypdfium2 pyyaml onnxruntime onnx pytest
+          pip install --no-deps -e packages/embedkit -e apps/rawi
+      - name: Tests (private Qahwati pages and downloaded models are absent here, those tests are skipped)
+        env:
+          EMBEDKIT_OFFLINE: "1"
+        run: pytest -q -rs packages/embedkit/tests apps/rawi/tests
