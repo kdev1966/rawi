@@ -9,7 +9,7 @@ description = "Redonner vie aux bandes dessinées : planches → motion comic (1
 readme = "README.md"
 license = {text = "Apache-2.0"}
 requires-python = ">=3.9"
-dependencies = ["numpy", "opencv-python-headless"]
+dependencies = ["numpy", "opencv-python-headless", "pypdfium2"]
 
 [project.scripts]
 rawi = "rawi.__main__:main"

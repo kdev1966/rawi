@@ -1,19 +1,13 @@
-import argparse, glob, json, os, sys, time
+import argparse, json, os, sys, time
 from .analyze import analyze, draw_debug, save
 from .render import render, FORMATS
-
-
-def _expand(paths):
-    out = []
-    for p in paths:
-        out += sorted(glob.glob(p)) or [p]
-    return out
+from .sources import InputError, expand_inputs
 
 
 def cmd_analyser(a):
     pages = []
     os.makedirs(a.controle, exist_ok=True)
-    for img in _expand(a.images):
+    for img in expand_inputs(a.images, a.dossier_pages, pages=a.pages, dpi=a.dpi):
         page = analyze(img, rtl=a.rtl)
         pages.append(page)
         dbg = os.path.join(a.controle, os.path.splitext(os.path.basename(img))[0] + "_controle.jpg")
@@ -47,9 +41,12 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     def opts_analyse(p):
-        p.add_argument("images", nargs="+", help="planches (jpg/png), ex. pages/*.jpg")
+        p.add_argument("images", nargs="+", help="planches (jpg/png) ou albums PDF, ex. pages/*.jpg album.pdf")
         p.add_argument("--rtl", action="store_true", help="lecture de droite à gauche (manga, BD arabe)")
         p.add_argument("--controle", default="controle", help="dossier des images de contrôle")
+        p.add_argument("--pages", help="PDF : pages à prendre, ex. 3-10,12 (par défaut : toutes)")
+        p.add_argument("--dpi", type=int, help="PDF : résolution du rendu (par défaut : celle du scan, sinon 300)")
+        p.add_argument("--dossier-pages", default="pages", help="PDF : dossier où ranger les pages extraites")
 
     def opts_rendu(p):
         p.add_argument("--dossier", default="videos", help="dossier de sortie")
@@ -67,12 +64,16 @@ def main(argv=None):
     opts_analyse(p); opts_rendu(p); p.add_argument("-o", "--sortie", default="projet.json")
 
     a = ap.parse_args(argv)
-    if a.cmd == "analyser":
-        cmd_analyser(a)
-    elif a.cmd == "rendre":
-        cmd_rendre(a)
-    else:
-        cmd_rendre(a, cmd_analyser(a))
+    try:
+        if a.cmd == "analyser":
+            cmd_analyser(a)
+        elif a.cmd == "rendre":
+            cmd_rendre(a)
+        else:
+            cmd_rendre(a, cmd_analyser(a))
+    except InputError as exc:
+        print(f"Erreur : {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ Aucune API payante, aucun abonnement : tout tourne en local, même sur un **MacB
 
 ## Ce que fait la v0.1
 
-1. **Analyse** de chaque planche (OpenCV, sans IA lourde) :
+1. **Analyse** de chaque planche, image ou page de PDF (OpenCV, sans IA lourde) :
    - détection des cases (y compris gouttières en biais et bulles qui débordent) ;
    - ordre de lecture gauche → droite (ou droite → gauche avec `--rtl`) ;
    - détection des bulles et estimation du temps de lecture ;
@@ -24,7 +24,7 @@ cd apps/rawi
 ./installer_mac.sh
 ```
 
-Le script réutilise le conda déjà installé (Miniforge ou Miniconda), ou installe Miniforge s'il n'y en a pas. Il crée un environnement isolé `rawi` avec Python 3.11, OpenCV et FFmpeg, en prenant les paquets **uniquement sur conda-forge**. Il ne touche pas au reste du système.
+Le script réutilise le conda déjà installé (Miniforge ou Miniconda), ou installe Miniforge s'il n'y en a pas. Il crée un environnement isolé `rawi` avec Python 3.11, OpenCV, FFmpeg et pypdfium2 (lecture des PDF), en prenant les paquets **uniquement sur conda-forge**. Il ne touche pas au reste du système.
 
 À chaque nouvelle fenêtre du Terminal :
 
@@ -53,11 +53,15 @@ rawi rendre projet.json --tout
 
 # BD lue de droite à gauche (manga, certaines BD arabes)
 rawi auto pages/*.jpg --rtl
+
+# Album PDF : toutes les pages, ou une sélection
+rawi auto album.pdf
+rawi auto album.pdf --pages 3-10,12
 ```
 
 Les vidéos sont dans `videos/` : `episode_01_9x16.mp4`, `episode_02_9x16.mp4`, …
 
-Les PDF ne sont pas encore lus directement : exportez d'abord les pages en PNG (par exemple avec Aperçu).
+Les pages d'un PDF sont d'abord extraites en PNG dans `pages/` (réutilisées tant que le PDF ne change pas). Un PDF scanné est lu à la résolution d'origine du scan, un PDF numérique à 300 dpi (`--dpi` pour changer).
 
 ### Corriger un projet
 

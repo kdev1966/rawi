@@ -7,6 +7,7 @@ __pycache__/
 *.bin
 *.mp4
 controle/
+pages/
 videos/
 cache/
 projet.json

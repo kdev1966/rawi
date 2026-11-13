@@ -22,10 +22,11 @@ source "$CONDA_BASE/etc/profile.d/conda.sh"
 if conda env list | grep -qE '^rawi[[:space:]]'; then
   echo "→ L'environnement « rawi » existe déjà."
 else
-  echo "→ Création de l'environnement « rawi » (Python, OpenCV, FFmpeg)…"
-  conda create -y -n rawi --override-channels -c conda-forge python=3.11 numpy opencv ffmpeg
+  echo "→ Création de l'environnement « rawi » (Python, OpenCV, FFmpeg, lecture des PDF)…"
+  conda create -y -n rawi --override-channels -c conda-forge python=3.11 numpy opencv ffmpeg pypdfium2
 fi
 conda activate rawi
+conda install -y -q -n rawi --override-channels -c conda-forge pypdfium2  # ajouté après la v0.1
 pip install --no-deps -e "$DIR"
 
 echo

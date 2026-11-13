@@ -329,6 +329,7 @@ Le texte lu est stocké **par bulle**, avec sa langue et son sens d'écriture, e
 5. Mettre en place pytest, ruff, les types (mypy en mode souple) et une CI GitHub Actions (Linux et macOS).
 6. Introduire un schéma de projet versionné (`"version": 2`, avec la structure de texte §6.4) et une migration depuis la v1.
 7. Écrire des tests « golden » sur les 8 planches Qahwati : nombre de cases et ordre attendus (fichier `expected.json` écrit à la main).
+8. **Entrée PDF** : `rawi analyser|auto album.pdf --pages 3-10`, pages extraites à la résolution du scan (pypdfium2, ADR 0004). ✅
 
 **Critères d'acceptation :**
 - `rawi auto` produit les mêmes vidéos que `bdanim auto` en v0.1 ;
@@ -440,6 +441,7 @@ Comportements attendus :
 | Qwen3-VL-2B trop lent ou trop gros sur la machine de référence | v0.4 dégradée | Bench avant intégration ; quantification plus forte ; repli règles de niveau 0 |
 | Licences de poids ambiguës (MI-GAN, détecteur de bulles…) | Juridique | `commercial: unknown` = refusé par défaut ; demander aux auteurs ; alternatives prêtes |
 | Qualité insuffisante des petits modèles sur le dessin | Résultat moyen | Niveau 0 robuste ; corrections manuelles faciles ; niveau 2 optionnel |
+| Détection des cases sensible à la recompression JPEG (mesuré : cases déplacées de plusieurs dizaines de pixels après réencodage en qualité 95) | Résultats instables d'une source à l'autre | Tests golden aussi sur des versions réencodées ; durcir la détection en v0.2 ; ADR 0004 |
 | Vieux scans (bruit, jaunissement, trame) | Détection dégradée | Restauration (v0.6) ; jeu de test dédié |
 | Lenteur sur la machine de référence | Expérience | Cache par hash, `--apercu`, traitement par lot de nuit |
 
