@@ -1,16 +1,23 @@
-# PRD — bdanim & embedkit
+# PRD — Rawi & embedkit
 
-**Projet** : bdanim — redonner vie aux bandes dessinées par l'animation automatique
+**Projet** : Rawi — redonner vie aux bandes dessinées par l'animation automatique (anciennement *bdanim*)
 **Socle partagé** : embedkit — boîte à outils d'IA embarquée réutilisable entre projets *(nom de travail)*
 **Porteur** : Kaabaoui Othman — TPLUS INNOVATION
-**Version du document** : 1.0 — 13 novembre 2026
-**État du code** : bdanim v0.1 fonctionnel (analyse + rendu motion comic, OpenCV/FFmpeg)
+**Version du document** : 1.1 — 13 novembre 2026
+**État du code** : v0.1 fonctionnelle, encore nommée `bdanim` dans le code (analyse + rendu motion comic, OpenCV/FFmpeg)
+
+### Historique
+
+| Version | Changements |
+|---|---|
+| 1.0 | Première version. |
+| 1.1 | Renommage en **Rawi** (code compris, en M0 — ADR 0001). Planches de **tout style et toute langue**, Qahwati n'étant qu'un exemple. Texte **arabe (derja) mêlé de français**. Feuille de route réordonnée : bulles vivantes, OCR et sous-titres passent en v0.2 ; calques et éditeur en v0.3 ; VLM en v0.4 (Qwen3-VL-2B, ADR 0002) ; audio en v0.5 ; restauration en v0.6. Détourage **automatique et manuel**. Texte OCR stocké prêt pour la traduction. LivePortrait et la vidéo générative (Wan) sont retirés de la feuille de route (§13 Pistes futures). |
 
 ---
 
 ## 1. Vision
 
-Transformer n'importe quelle planche de BD — scan ancien ou création récente — en **vidéo animée** (motion comic) prête pour Reels, TikTok et YouTube, avec un outil :
+Transformer n'importe quelle planche de BD — scan ancien ou création récente, quels que soient son style, sa langue et son sens de lecture — en **vidéo animée** (motion comic) prête pour Reels, TikTok et YouTube, avec un outil :
 
 - **100 % open source**, sous licence permissive (Apache 2.0) ;
 - **100 % local et hors ligne** après le premier téléchargement des modèles ;
@@ -18,7 +25,7 @@ Transformer n'importe quelle planche de BD — scan ancien ou création récente
 - **à IA embarquée** : les moteurs d'inférence sont des bibliothèques chargées dans le processus de l'application, et les modèles de simples fichiers livrés ou téléchargés ;
 - **utilisable sur une machine modeste** : la machine de référence est un MacBook 2015 sans GPU.
 
-Le code d'IA embarquée n'est **pas propre à bdanim**. Le porteur mène plusieurs projets à IA embarquée : tout ce qui est générique (gestion des modèles, moteurs d'inférence, détection du matériel, licences) vit dans une bibliothèque séparée, **embedkit**, que bdanim et les autres projets réutilisent.
+Le code d'IA embarquée n'est **pas propre à Rawi**. Le porteur mène plusieurs projets à IA embarquée : tout ce qui est générique (gestion des modèles, moteurs d'inférence, détection du matériel, licences) vit dans une bibliothèque séparée, **embedkit**, que Rawi et les autres projets réutilisent.
 
 ---
 
@@ -26,18 +33,20 @@ Le code d'IA embarquée n'est **pas propre à bdanim**. Le porteur mène plusieu
 
 ### Objectifs
 
-1. **O1 — Automatiser environ 80 % du travail** d'un monteur motion comic : découpage, ordre de lecture, mise en scène, rendu.
-2. **O2 — Garder l'humain dans la boucle** : chaque étape produit un résultat vérifiable (images de contrôle) et corrigeable (projet JSON, masques en images), puis le rendu est relancé.
+1. **O1 — Automatiser environ 80 % du travail** d'un monteur motion comic : découpage, ordre de lecture, lecture du texte, mise en scène, rendu.
+2. **O2 — Garder l'humain dans la boucle** : chaque étape produit un résultat vérifiable (images de contrôle) et corrigeable (projet JSON, masques en images, clics dans l'éditeur), puis le rendu est relancé.
 3. **O3 — Tourner sur la machine de référence** (voir §5) pour les niveaux 0 et 1.
-4. **O4 — Réutilisabilité** : embedkit est indépendant de bdanim, documenté et testé séparément.
+4. **O4 — Réutilisabilité** : embedkit est indépendant de Rawi, documenté et testé séparément.
 5. **O5 — Conformité des licences** : tout composant livré par défaut autorise l'usage commercial.
+6. **O6 — Généralité** : la détection ne doit pas être ajustée à une seule série. Les planches Qahwati servent de référence, pas de cible unique ; un second jeu de planches de styles différents sert de contrôle.
 
 ### Non-objectifs (pour l'instant)
 
 - Pas d'application mobile, ni de cible embarquée matérielle (Raspberry Pi, smartphone). L'architecture doit toutefois ne pas l'empêcher.
 - Pas de génération de BD à partir de rien : on anime des planches existantes.
 - Pas de service en ligne, pas de compte utilisateur, pas de télémétrie.
-- Pas de vidéo générative dans le parcours par défaut (niveau 2 optionnel uniquement).
+- Pas de vidéo générative ni de réanimation des visages (voir §13).
+- Pas de traduction automatique dans la feuille de route actuelle ; le format de données la prépare (voir §6.4).
 
 ---
 
@@ -45,18 +54,20 @@ Le code d'IA embarquée n'est **pas propre à bdanim**. Le porteur mène plusieu
 
 | Profil | Besoin |
 |---|---|
-| **Créateur de contenu** (ex. série « Qahwati ») | Publier un épisode par planche, en 9:16, rapidement, avec sa propre voix |
+| **Créateur de contenu** (ex. série « Qahwati ») | Publier un épisode par planche, en 9:16, rapidement, avec sous-titres et sa propre voix |
 | **Ayant droit / passionné de BD ancienne** | Numériser de vieux albums et leur donner une seconde vie en vidéo |
 | **Éducateur** | Transformer des BD pédagogiques en vidéos courtes |
 | **Développeur** (porteur, contributeurs) | Réutiliser embedkit dans d'autres projets à IA embarquée |
 
+**Planches visées :** tout style (ligne claire, manga, comics, scans anciens), toute disposition de cases, gouttières blanches ou non, sens de lecture gauche → droite ou droite → gauche. Texte des bulles : en priorité **arabe (dont la derja tunisienne écrite en lettres arabes) mêlé de français** dans une même bulle, puis toute langue en écriture latine.
+
 **Parcours principal :**
 
 1. L'utilisateur dépose des planches (JPG/PNG/PDF scanné).
-2. `bdanim analyser` produit `projet.json` et des images de contrôle.
-3. L'utilisateur vérifie et corrige si besoin (JSON aujourd'hui, éditeur web plus tard).
-4. `bdanim rendre` produit une vidéo par planche (ou une vidéo globale).
-5. Optionnel : il ajoute voix, musique et sous-titres, puis relance le rendu.
+2. `rawi analyser` produit `projet.json` et des images de contrôle (cases, ordre, bulles, texte lu).
+3. L'utilisateur vérifie et corrige si besoin (JSON aujourd'hui, éditeur web local en v0.3).
+4. `rawi rendre` produit une vidéo par planche (ou une vidéo globale), avec sous-titres incrustés et/ou fichier `.srt`.
+5. Optionnel : il ajoute voix, musique et bruitages, puis relance le rendu.
 
 ---
 
@@ -68,11 +79,12 @@ Le code d'IA embarquée n'est **pas propre à bdanim**. Le porteur mène plusieu
    - **Niveau 1, léger** (par défaut) : petits modèles ONNX/GGUF quantifiés, sur CPU ;
    - **Niveau 2, lourd** (optionnel) : gros modèles, GPU ou machine distante de l'utilisateur.
 
-   Le niveau est choisi automatiquement selon le matériel, et forçable par option.
-3. **Tout est fichier, tout est rejouable.** Chaque étape écrit ses sorties dans le dossier projet (`cache/`, masques PNG, JSON). Une étape ne recalcule que si ses entrées ont changé (hash).
-4. **Embarqué, pas client-serveur.** Inférence en processus via des bibliothèques (ONNX Runtime, OpenCV DNN, llama.cpp, whisper.cpp, stable-diffusion.cpp). Aucun démon à lancer.
-5. **Licences vérifiées par le code.** Chaque modèle déclare sa licence dans un manifeste. Par défaut, embedkit refuse de charger un modèle non commercial, sauf option explicite.
-6. **Messages utilisateur en français**, code et identifiants en anglais.
+   Le niveau est choisi automatiquement selon le matériel, et forçable par option. **Chaque tâche IA a un repli de niveau 0**, éventuellement manuel (saisie, clics).
+3. **Automatique et manuel côte à côte.** Pour les tâches où l'IA se trompe souvent (détourage, texte), l'utilisateur peut corriger ou faire à la main, case par case. Une correction manuelle n'est jamais écrasée par un recalcul.
+4. **Tout est fichier, tout est rejouable.** Chaque étape écrit ses sorties dans le dossier projet (`cache/`, masques PNG, JSON). Une étape ne recalcule que si ses entrées ont changé (hash).
+5. **Embarqué, pas client-serveur.** Inférence en processus via des bibliothèques (ONNX Runtime, OpenCV DNN, llama.cpp, whisper.cpp). Aucun démon à lancer.
+6. **Licences vérifiées par le code.** Chaque modèle déclare sa licence dans un manifeste. Par défaut, embedkit refuse de charger un modèle non commercial, sauf option explicite.
+7. **Messages utilisateur en français**, code et identifiants en anglais.
 
 ---
 
@@ -80,9 +92,11 @@ Le code d'IA embarquée n'est **pas propre à bdanim**. Le porteur mène plusieu
 
 ### Machine de référence (doit fonctionner)
 
+C'est aussi la machine de travail du porteur : tout ce qui est annoncé comme fonctionnel y est mesuré.
+
 | Élément | Valeur |
 |---|---|
-| Machine | MacBook Pro 2015, Intel (x86_64, AVX2), sans GPU NVIDIA |
+| Machine | MacBook Pro 2015, Intel Core i7-4870HQ (x86_64, AVX2), sans GPU utile à l'inférence |
 | RAM | 16 Go |
 | OS | macOS 12.7.6 Monterey |
 | Python | 3.11 via **Miniforge / conda-forge** (Homebrew est mal supporté sur macOS 12) |
@@ -90,13 +104,15 @@ Le code d'IA embarquée n'est **pas propre à bdanim**. Le porteur mène plusieu
 ### Conséquences
 
 - **PyTorch est exclu à l'exécution** : il n'est plus distribué pour macOS Intel depuis la version 2.3. Tous les modèles de vision sont convertis en **ONNX** (la conversion se fait ailleurs, une fois, et les fichiers sont publiés).
-- **ONNX Runtime** : vérifier la disponibilité pour osx-64 (conda-forge ou pip). Repli : **OpenCV DNN**, déjà présent.
-- **llama.cpp** via `llama-cpp-python`, compilé à l'installation (Xcode Command Line Tools requis). Fallback : binaire `llama-mtmd-cli` appelé en sous-processus, toujours sans serveur.
-- **FFmpeg** : choix automatique de l'encodeur (libx264, sinon `h264_videotoolbox`, sinon OpenH264), déjà implémenté.
+- **ONNX Runtime** : disponibilité sur osx-64 à vérifier **en premier** en M0 (conda-forge ou pip). Repli : **OpenCV DNN**, déjà présent.
+- **llama.cpp** via `llama-cpp-python`, compilé à l'installation (Xcode Command Line Tools requis). Repli : binaire `llama-mtmd-cli` appelé en sous-processus, toujours sans serveur.
+- **FFmpeg** : choix automatique de l'encodeur (libx264, sinon `h264_videotoolbox`, sinon OpenH264), déjà implémenté. Les sous-titres incrustés passent par libass (mise en forme de l'arabe), à vérifier dans le FFmpeg de conda-forge.
 - **Budgets** :
   - modèles de niveau 1 hors modèle de langage : **≤ 150 Mo au total** ;
-  - modèle vision-langage par défaut : **≤ 2,5 Go** (Q4) ;
-  - pic de RAM : **≤ 8 Go**.
+  - modèle vision-langage par défaut : **≤ 2,5 Go** (Q4, projecteur compris) ;
+  - pic de RAM : **≤ 8 Go** ;
+  - analyse IA : **quelques minutes par planche** (≤ 5 min), faite une fois puis mise en cache ;
+  - rendu : **≤ 2 min par planche** en 1080×1920.
 
 ### Autres plateformes
 
@@ -109,7 +125,7 @@ Linux x86_64 et Windows doivent fonctionner (CI). Apple Silicon et GPU NVIDIA so
 ### 6.1 Organisation du dépôt (monorepo)
 
 ```
-bdanim-workspace/
+rawi/
 ├── CLAUDE.md                  # règles de travail pour Claude Code
 ├── docs/
 │   ├── PRD.md                 # ce document
@@ -124,40 +140,42 @@ bdanim-workspace/
 │       │   ├── runtimes/
 │       │   │   ├── onnx.py            # ONNX Runtime (+ repli OpenCV DNN)
 │       │   │   ├── opencv_dnn.py
-│       │   │   ├── llamacpp.py        # LLM / VLM GGUF (llama-cpp-python)
-│       │   │   ├── whispercpp.py      # ASR (v0.4)
-│       │   │   └── sdcpp.py           # stable-diffusion.cpp (v0.5, optionnel)
+│       │   │   ├── llamacpp.py        # LLM / VLM GGUF (llama-cpp-python) — v0.4
+│       │   │   └── whispercpp.py      # ASR — v0.5
 │       │   ├── tasks/             # interfaces haut niveau, indépendantes du modèle
-│       │   │   ├── segment.py         # détourage
-│       │   │   ├── inpaint.py         # effacement / reconstruction
-│       │   │   ├── depth.py           # profondeur
-│       │   │   ├── detect.py          # détection d'objets (bulles, texte…)
-│       │   │   ├── ocr.py
-│       │   │   ├── vlm.py             # image + texte → texte / JSON
-│       │   │   └── asr.py
+│       │   │   ├── detect.py          # détection d'objets (bulles, texte…) — v0.2
+│       │   │   ├── ocr.py             # v0.2
+│       │   │   ├── inpaint.py         # effacement / reconstruction — v0.2
+│       │   │   ├── segment.py         # détourage — v0.3
+│       │   │   ├── depth.py           # profondeur — v0.3
+│       │   │   ├── vlm.py             # image + texte → texte / JSON — v0.4
+│       │   │   └── asr.py             # v0.5
 │       │   ├── bench.py           # micro-benchmarks (temps, RAM) par modèle
 │       │   └── cli.py             # `embedkit models list|pull|verify|bench`
 │       ├── models/                # manifestes YAML (un par modèle)
 │       └── tests/
 ├── apps/
-│   └── bdanim/
-│       ├── bdanim/
+│   └── rawi/
+│       ├── rawi/
 │       │   ├── project.py         # schéma projet, versions, migrations
 │       │   ├── analyze/           # cases, ordre, bulles (v0.1 existant)
-│       │   ├── restore/           # restauration des scans (v0.3)
-│       │   ├── layers/            # calques : texte, personnages, fond, profondeur (v0.2)
-│       │   ├── direct/            # mise en scène automatique (v0.3, VLM)
+│       │   ├── text/              # OCR, sens de lecture, sous-titres (v0.2)
+│       │   ├── layers/            # calques : bulles (v0.2), personnages, fond, profondeur (v0.3)
 │       │   ├── render/            # moteur de rendu, effets, parallaxe
-│       │   ├── audio/             # voix, bruitages, musique, sous-titres (v0.4)
 │       │   ├── ui/                # éditeur web local (v0.3)
+│       │   ├── direct/            # mise en scène automatique (v0.4, VLM)
+│       │   ├── audio/             # voix, bruitages, musique (v0.5)
+│       │   ├── restore/           # restauration des scans (v0.6)
 │       │   └── cli.py
 │       └── tests/
-│           └── fixtures/qahwati/  # 8 planches de référence
+│           └── fixtures/
+│               ├── qahwati/       # 8 planches de référence
+│               └── controle/      # planches d'autres styles (voir §11)
 └── tools/
     └── convert/               # scripts de conversion PyTorch → ONNX (hors machine de référence)
 ```
 
-**Règle de dépendance** : `bdanim` dépend d'`embedkit`, **jamais l'inverse**. embedkit ne connaît pas la BD.
+**Règle de dépendance** : `rawi` dépend d'`embedkit`, **jamais l'inverse**. embedkit ne connaît pas la BD.
 
 ### 6.2 embedkit — spécification
 
@@ -167,7 +185,7 @@ bdanim-workspace/
 id: migan-512
 task: inpaint
 tier: 1
-runtime: onnx            # onnx | opencv_dnn | llamacpp | whispercpp | sdcpp
+runtime: onnx            # onnx | opencv_dnn | llamacpp | whispercpp
 source:
   repo: <org>/<repo>     # Hugging Face
   file: migan_pipeline_v2.onnx
@@ -190,11 +208,15 @@ notes: "Conçu pour mobile."
 ```python
 from embedkit import hardware, tasks
 
-profile = hardware.probe()             # CPU, RAM, AVX2, GPU, niveau recommandé
+profile = hardware.probe()               # CPU, RAM, AVX2, GPU, niveau recommandé
 seg = tasks.Segmenter.load(tier="auto")  # choisit le meilleur modèle autorisé
-mask = seg(image, box=(x, y, w, h))    # numpy in → numpy out
+mask = seg(image, box=(x, y, w, h))      # numpy in → numpy out
+mask = seg(image, points=[(x, y, 1), (x2, y2, 0)])  # clics positifs / négatifs
 
-vlm = tasks.VLM.load("smolvlm2-2.2b")
+ocr = tasks.OCR.load(tier="auto", scripts=["arabic", "latin"])
+lines = ocr(image)                       # [{text, script, box, confidence}]
+
+vlm = tasks.VLM.load("qwen3-vl-2b")
 data = vlm.ask(image, prompt, schema=MyPydanticModel)  # sortie JSON validée
 ```
 
@@ -209,12 +231,13 @@ data = vlm.ask(image, prompt, schema=MyPydanticModel)  # sortie JSON validée
 - **EK-7** : chargement paresseux et libération explicite (`close()` / gestionnaire de contexte) pour tenir dans 16 Go.
 - **EK-8** : sortie structurée des VLM, avec grammaire GBNF ou schéma JSON côté llama.cpp et validation pydantic.
 - **EK-9** : aucune dépendance à PyTorch ni à transformers à l'exécution.
+- **EK-10** : la tâche `segment` accepte une boîte **ou** des clics (positifs/négatifs), pour le détourage manuel assisté.
 
-### 6.3 bdanim — pipeline
+### 6.3 Rawi — pipeline
 
 ```
-planches ─► [1 Restaurer] ─► [2 Analyser] ─► [3 Calques] ─► [4 Mettre en scène] ─► [5 Audio] ─► [6 Rendre] ─► MP4
-               v0.3            v0.1 ✅          v0.2              v0.3                 v0.4         v0.1 ✅ → v0.2
+planches ─► [Restaurer] ─► [Analyser] ─► [Texte] ─► [Calques] ─► [Mettre en scène] ─► [Audio] ─► [Rendre] ─► MP4 + .srt
+               v0.6         v0.1 ✅       v0.2       v0.2/v0.3        v0.4             v0.5      v0.1 ✅ → v0.3
 ```
 
 Chaque étape lit et écrit dans le **dossier projet** :
@@ -224,17 +247,42 @@ mon_projet/
 ├── projet.json            # source de vérité, éditable
 ├── pages/                 # planches originales
 ├── cache/<hash>/…         # sorties intermédiaires (recalculables)
-├── layers/page01/panel03/ # background.png, char_01.png, char_01_mask.png, depth.png…
+├── layers/page01/panel03/ # background.png, bubble_01.png, char_01.png, char_01_mask.png, depth.png…
 ├── controle/              # images de contrôle
 ├── audio/
+├── sous-titres/           # .srt (et .ass pour l'incrustation)
 └── videos/
 ```
+
+### 6.4 Texte des bulles dans `projet.json`
+
+Le texte lu est stocké **par bulle**, avec sa langue et son sens d'écriture, et un emplacement réservé aux traductions. Les sous-titres et la future traduction lisent cette même structure.
+
+```json
+{
+  "id": "p01-c03-b02",
+  "polygon": [[412, 88], [530, 90], "…"],
+  "order": 2,
+  "source": "ocr",
+  "text": "صباح الخير، ça va ?",
+  "segments": [
+    {"text": "صباح الخير،", "script": "arabic", "direction": "rtl"},
+    {"text": "ça va ?", "script": "latin", "direction": "ltr"}
+  ],
+  "lang": ["ar-TN", "fr"],
+  "confidence": 0.81,
+  "translations": {}
+}
+```
+
+- `source` vaut `ocr` ou `manual`. Un texte `manual` n'est jamais écrasé par un nouvel OCR.
+- `translations` est une table `langue → texte`, vide tant que la traduction n'existe pas.
 
 ---
 
 ## 7. État actuel : v0.1 (livré)
 
-**Code** : `bdanim/analyze.py`, `bdanim/render.py`, `bdanim/__main__.py` (~400 lignes), dépendances NumPy, OpenCV et FFmpeg.
+**Code** : `bdanim/analyze.py`, `bdanim/render.py`, `bdanim/__main__.py` (~400 lignes), dépendances NumPy, OpenCV et FFmpeg. Le code porte encore l'ancien nom ; il sera renommé en M0.
 
 | Fonction | Implémentation |
 |---|---|
@@ -246,7 +294,7 @@ mon_projet/
 | Sortie | 9:16, 16:9, 1:1 ; 30 i/s ; `--apercu` en demi-résolution ; `--musique` |
 | CLI | `bdanim analyser`, `bdanim rendre`, `bdanim auto` |
 
-**Résultats sur les 8 planches Qahwati** : épisodes de 25 à 43 s, environ 30 à 50 s de rendu par planche sur une machine Linux. Sur la machine de référence, l'estimation est de 1 à 2 min (**non mesuré** à ce jour).
+**Résultats sur les 8 planches Qahwati** : épisodes de 25 à 43 s, environ 30 à 50 s de rendu par planche sur une machine Linux. Sur la machine de référence : **non mesuré** à ce jour.
 
 **Limites connues :**
 
@@ -254,6 +302,7 @@ mon_projet/
 - planche 6 : dernière case coupée en deux (prolongement de gouttière à travers une bulle) ;
 - les bulles restent visibles en permanence (le « pop » n'est qu'un rebond) ;
 - masque de bulle approximé par une ellipse (bbox) ;
+- détection des cases dépendante de gouttières blanches ; non testée hors Qahwati ;
 - aucun test automatisé ;
 - le script `installer_mac.sh` n'a pas été testé sur macOS 12.
 
@@ -261,69 +310,102 @@ mon_projet/
 
 ## 8. Feuille de route et critères d'acceptation
 
+| Jalon | Contenu | Valeur pour l'utilisateur |
+|---|---|---|
+| **M0** | Fondations, renommage, tests | Base saine et mesurée |
+| **v0.2** | Bulles vivantes, OCR ar/fr, sous-titres | Vidéo publiable sous-titrée |
+| **v0.3** | Calques, parallaxe, détourage auto + manuel, éditeur | Vrai effet motion comic, corrections faciles |
+| **v0.4** | Mise en scène par VLM | Caméra et rythme pensés case par case |
+| **v0.5** | Audio | Épisode complet avec voix et ambiance |
+| **v0.6** | Restauration des scans | Vieilles BD exploitables |
+| *Option* | Format webtoon (défilement vertical) | Non planifié ; à placer selon la demande |
+
 ### M0 — Fondations (prérequis à tout le reste)
 
-- Restructurer en monorepo (§6.1), en déplaçant la v0.1 dans `apps/bdanim` sans régression.
-- Créer `embedkit` : `hardware`, `registry`, `store`, `licenses`, runtime `onnx` (+ repli OpenCV DNN), CLI `models`.
-- Mettre en place pytest, ruff, les types (mypy en mode souple) et une CI GitHub Actions (Linux et macOS).
-- Introduire un schéma de projet versionné (`"version": 2`) avec migration depuis la v1.
-- Écrire des tests « golden » sur les 8 planches : nombre de cases et ordre attendus (fichier `expected.json` écrit à la main).
+1. **Vérifier ONNX Runtime sur la machine de référence** (installation conda-forge/pip, chargement d'un petit modèle ONNX, comparaison avec OpenCV DNN). Conclusion consignée dans un ADR.
+2. **Renommer `bdanim` en `rawi`** : paquet, module Python, commande CLI, README et `CLAUDE.md` (ADR 0001).
+3. Restructurer en monorepo (§6.1), en déplaçant la v0.1 dans `apps/rawi` sans régression.
+4. Créer `embedkit` : `hardware`, `registry`, `store`, `licenses`, runtime `onnx` (+ repli OpenCV DNN), CLI `models`.
+5. Mettre en place pytest, ruff, les types (mypy en mode souple) et une CI GitHub Actions (Linux et macOS).
+6. Introduire un schéma de projet versionné (`"version": 2`, avec la structure de texte §6.4) et une migration depuis la v1.
+7. Écrire des tests « golden » sur les 8 planches Qahwati : nombre de cases et ordre attendus (fichier `expected.json` écrit à la main).
 
 **Critères d'acceptation :**
-- `bdanim auto` produit les mêmes vidéos qu'en v0.1 ;
+- `rawi auto` produit les mêmes vidéos que `bdanim auto` en v0.1 ;
 - `embedkit models list` fonctionne hors ligne ;
 - la CI est verte ;
-- l'installation est vérifiée sur la machine de référence.
+- l'installation et le temps de rendu v0.1 sont mesurés sur la machine de référence.
 
-### v0.2 — Calques et parallaxe 2.5D
+### v0.2 — Bulles vivantes, OCR arabe/français, sous-titres
 
-| Tâche | Niveau 0 | Niveau 1 (par défaut) | Niveau 2 |
-|---|---|---|---|
-| Masque précis des bulles | contour réel (déjà calculé) | détecteur RT-DETR comic text/bubble quantifié (Apache 2.0) | — |
-| Effacer le texte dans les bulles | remplissage blanc | — | — |
-| Effacer bulles et texte hors bulles | `cv2.inpaint` (Telea) | MI-GAN ONNX (*licence des poids à confirmer*) | LaMa |
-| Détourage des personnages | — | MobileSAM ONNX (prompt = bbox), ou U²-Net-p | BiRefNet |
-| Reconstruction du fond derrière les personnages | Telea | MI-GAN | LaMa |
-| Profondeur | ordre des calques | Depth Anything V2 Small, ONNX INT8 (Apache 2.0) | — |
+| Tâche | Niveau 0 | Niveau 1 (par défaut) |
+|---|---|---|
+| Masque précis des bulles | contour réel (déjà calculé) | détecteur de bulles/texte pour BD (RT-DETR quantifié ; licence à vérifier) |
+| Effacer les bulles du fond | `cv2.inpaint` (Telea) ; remplissage blanc à l'intérieur | MI-GAN ONNX (*licence des poids à confirmer*) |
+| Lecture du texte (OCR) | saisie manuelle dans le projet | PaddleOCR ONNX (Apache 2.0), modèles arabe et latin, choix par ligne ; alternative Tesseract `ara+fra` (Apache 2.0) — à départager par bench |
+| Sens de lecture | `--rtl` / `--ltr` | déduit de l'écriture dominante (arabe → droite à gauche), modifiable |
 
 Comportements attendus :
 
-- **Bulles réelles** : chaque bulle est un calque PNG (alpha) qui apparaît au bon moment (scale 0,85 → 1,0 avec rebond, ou fondu).
+- **Bulles vivantes** : chaque bulle est un calque PNG (alpha) découpé selon son contour réel ; elle **apparaît au bon moment**, dans l'ordre de lecture de la case (scale 0,85 → 1,0 avec rebond, ou fondu), le fond étant reconstitué dessous.
+- **Durée par bulle** calculée à partir de la longueur du texte lu (repli : pixels de texte, comme en v0.1).
+- **Texte mixte** : une même bulle peut contenir de l'arabe et du français ; chaque segment garde son sens d'écriture (§6.4).
+- **Sous-titres** : fichier `.srt` exporté et/ou sous-titres incrustés (arabe correctement mis en forme et lié), synchronisés sur l'apparition des bulles. Option `--sous-titres {aucun,srt,incrustes,les-deux}`.
+- **Corrections** : texte et ordre des bulles modifiables dans `projet.json` ; une correction manuelle est conservée.
+- **Images de contrôle** : bulles détectées numérotées, texte lu en regard.
+
+**Critères d'acceptation :**
+- sur les 8 planches Qahwati, ≥ 90 % des bulles sont correctement détourées, effacées et réapparaissent ;
+- OCR correct sur ≥ 85 % des mots des planches Qahwati (arabe et français), mesuré contre une transcription écrite à la main ;
+- le jeu de contrôle (§11) ne présente pas de régression grossière (bulles manquées en masse, ordre inversé) ;
+- analyse de niveau 1 ≤ 5 min par planche et rendu ≤ 2 min par planche, mesurés sur la machine de référence ;
+- tous les modèles par défaut ont `commercial: true`.
+
+### v0.3 — Calques, parallaxe 2.5D, éditeur
+
+| Tâche | Niveau 0 | Niveau 1 (par défaut) | Niveau 2 |
+|---|---|---|---|
+| Détourage des personnages | tracé manuel (polygone) | MobileSAM ONNX, prompt = boîte ou clics ; repli U²-Net-p | BiRefNet |
+| Reconstruction du fond derrière les personnages | Telea | MI-GAN | LaMa |
+| Profondeur | ordre des calques | Depth Anything V2 Small, ONNX INT8 (Apache 2.0) | — |
+
+- **Détourage au choix, case par case** : automatique (boîte détectée), assisté (clics positifs/négatifs) ou entièrement manuel.
 - **Parallaxe** : le fond, les personnages et les bulles se déplacent à des vitesses différentes, avec une option de déformation légère guidée par la profondeur.
 - **Corrections manuelles** : si `char_01_mask.png` a été modifié par l'utilisateur (hash différent), il est conservé et réutilisé.
+- **Éditeur web local** (FastAPI + front statique, servi par Rawi lui-même, sans service externe) : visualiser et corriger cases, ordre, bulles, texte, masques (clics), durées et timeline, puis prévisualiser.
 - **Images de contrôle** : vue en calques séparés.
 
 **Critères d'acceptation :**
-- sur les 8 planches, ≥ 90 % des bulles sont correctement effacées et réapparaissent ;
-- détourage jugé « utilisable » sur ≥ 80 % des cases ;
-- analyse de niveau 1 ≤ 5 min par planche sur la machine de référence ;
-- rendu ≤ 2 min par planche en 1080×1920 ;
-- tous les modèles par défaut ont `commercial: true`.
+- détourage automatique jugé « utilisable » sur ≥ 80 % des cases Qahwati ; les autres se corrigent par clics en moins d'une minute par personnage ;
+- l'éditeur permet de corriger une case mal détectée en moins de 30 s ;
+- temps d'analyse et de rendu toujours dans les budgets du §5.
 
-### v0.3 — Comprendre, restaurer, éditer
+### v0.4 — Mise en scène par VLM
 
-- **Restauration des scans** : redressement, correction du jaunissement, débruitage (niveau 0), agrandissement Real-ESRGAN ONNX (niveau 1, BSD).
-- **OCR** des bulles (Tesseract ou PaddleOCR ONNX, arabe et français) : texte modifiable, traduction possible, base des sous-titres.
-- **Mise en scène par VLM** (llama.cpp, par défaut SmolVLM2 2.2B ou équivalent sous Apache 2.0). Pour chaque case, un JSON validé : `{speaker, emotion, action, camera: {move, target, intensity}, sfx[], pause_after}`.
-- **Éditeur web local** (FastAPI + front statique, servi par bdanim lui-même) : visualiser et corriger cases, ordre, calques, durées, timeline, puis prévisualiser.
+- **VLM par défaut : Qwen3-VL-2B** en GGUF Q4 via llama.cpp (ADR 0002 ; licence à confirmer dans le manifeste). Repli : règles de niveau 0 de la v0.1 (durées, zoom, transitions).
+- Pour chaque case, un JSON validé : `{speaker, emotion, action, camera: {move, target, intensity}, sfx[], pause_after}`. Le texte OCR de la v0.2 est fourni au VLM en contexte.
+- Les propositions sont écrites dans `projet.json`, modifiables dans l'éditeur, et jamais appliquées par-dessus une valeur fixée à la main.
 
 **Critères d'acceptation :**
-- OCR correct sur ≥ 85 % des mots des planches Qahwati ;
 - les propositions du VLM sont jugées pertinentes sur ≥ 70 % des cases ;
-- l'éditeur permet de corriger une case mal détectée en moins de 30 s.
+- analyse VLM ≤ 5 min par planche sur la machine de référence, mise en cache ;
+- pic de RAM ≤ 8 Go.
 
-### v0.4 — Audio
+### v0.5 — Audio
 
 - Import de voix enregistrées (une piste par bulle ou une piste globale découpée).
-- Calage automatique des sous-titres avec whisper.cpp.
+- Calage automatique des sous-titres et des bulles sur la voix avec whisper.cpp.
 - Bruitages depuis une bibliothèque CC0 locale, sélectionnés à partir des étiquettes `sfx` du VLM.
 - Musique avec ducking automatique sous les voix, mixage FFmpeg.
 - Synthèse vocale **optionnelle**, avec uniquement des modèles à licence permissive. La derja tunisienne n'est pas couverte : la voix enregistrée reste la voie recommandée.
 
-### v0.5 — Animation avancée (optionnelle)
+### v0.6 — Restauration des scans
 
-- Visages : clignement des yeux et mouvement de bouche synchronisé (modèle ONNX permissif à identifier).
-- Plans génératifs ponctuels via stable-diffusion.cpp (famille Wan), réservés au niveau 2 ou à une machine avec GPU.
+- Redressement, correction du jaunissement, débruitage et atténuation de la trame (niveau 0).
+- Agrandissement Real-ESRGAN ONNX (niveau 1, BSD).
+- Placée avant l'analyse dans le pipeline ; activable par planche.
+
+**Critère d'acceptation :** sur un jeu de vieux scans (§11), la détection des cases et l'OCR après restauration sont meilleurs qu'avant.
 
 ---
 
@@ -331,13 +413,14 @@ Comportements attendus :
 
 | Domaine | Exigence |
 |---|---|
-| Performance | Voir les critères par jalon. Toute étape > 10 s affiche une barre de progression. |
+| Performance | Voir les budgets (§5) et les critères par jalon. Toute étape > 10 s affiche une barre de progression. |
 | Mémoire | Pic ≤ 8 Go sur la machine de référence ; un seul gros modèle chargé à la fois. |
 | Reproductibilité | Mêmes entrées et même projet = même vidéo (graines fixées, versions de modèles épinglées). |
 | Robustesse | Une planche en échec n'arrête pas le lot ; erreur claire en français et suggestion de correction. |
 | Hors ligne | Après `embedkit models pull`, aucune connexion n'est requise. |
+| Texte | Arabe et français rendus correctement (mise en forme, ligatures, sens bidirectionnel) dans les images de contrôle, l'éditeur et les sous-titres. |
 | Qualité du code | Python 3.11, annotations de types, ruff, docstrings ; aucune fonction de plus de 60 lignes sans raison. |
-| Tests | Unitaires (embedkit), golden (bdanim), smoke test de rendu en `--apercu` en CI. |
+| Tests | Unitaires (embedkit), golden (Rawi, Qahwati + jeu de contrôle), smoke test de rendu en `--apercu` en CI. |
 | Licences | `embedkit licenses audit` liste code et modèles ; la CI échoue si un modèle par défaut n'est pas commercial. |
 | Documentation | README par paquet, ADR pour chaque choix structurant (runtime, modèle par défaut, format projet). |
 
@@ -347,23 +430,29 @@ Comportements attendus :
 
 | Risque | Impact | Parade |
 |---|---|---|
-| ONNX Runtime indisponible sur macOS 12 Intel | Bloquant v0.2 | Repli OpenCV DNN ; vérification en M0 ; ADR |
+| ONNX Runtime indisponible sur macOS 12 Intel | Bloquant v0.2 | Vérifié en premier en M0 ; repli OpenCV DNN ; ADR |
 | Opérateurs ONNX non supportés par OpenCV DNN | Modèle inutilisable | Tester chaque modèle dans `embedkit bench` ; modèle alternatif dans le manifeste |
-| Compilation de `llama-cpp-python` sur Monterey | Bloquant v0.3 | Repli sur le binaire `llama-mtmd-cli` en sous-processus |
-| Licences de poids ambiguës (MI-GAN, isnet-anime…) | Juridique | `commercial: unknown` = refusé par défaut ; demander aux auteurs ; alternatives prêtes |
+| OCR médiocre sur la derja manuscrite ou le lettrage BD, surtout en arabe | Sous-titres faux | Bench PaddleOCR / Tesseract en début de v0.2 ; correction manuelle facile ; texte `manual` protégé |
+| Bulles mêlant arabe et français (sens bidirectionnel) | Texte mal ordonné | Segments par écriture (§6.4) ; tests dédiés |
+| Mise en forme de l'arabe à l'incrustation (OpenCV ne la gère pas) | Sous-titres illisibles | Incrustation via libass (FFmpeg) ou Pillow + raqm ; vérifié en v0.2 |
+| Détection ajustée à Qahwati | Échec sur d'autres BD | Jeu de contrôle d'autres styles dans les tests golden (O6) |
+| Compilation de `llama-cpp-python` sur Monterey | Bloquant v0.4 | Repli sur le binaire `llama-mtmd-cli` en sous-processus |
+| Qwen3-VL-2B trop lent ou trop gros sur la machine de référence | v0.4 dégradée | Bench avant intégration ; quantification plus forte ; repli règles de niveau 0 |
+| Licences de poids ambiguës (MI-GAN, détecteur de bulles…) | Juridique | `commercial: unknown` = refusé par défaut ; demander aux auteurs ; alternatives prêtes |
 | Qualité insuffisante des petits modèles sur le dessin | Résultat moyen | Niveau 0 robuste ; corrections manuelles faciles ; niveau 2 optionnel |
-| Vieux scans (bruit, jaunissement, trame) | Détection dégradée | Étape de restauration avant analyse ; jeu de test dédié |
+| Vieux scans (bruit, jaunissement, trame) | Détection dégradée | Restauration (v0.6) ; jeu de test dédié |
 | Lenteur sur la machine de référence | Expérience | Cache par hash, `--apercu`, traitement par lot de nuit |
 
 ---
 
 ## 11. Questions ouvertes
 
-1. Nom définitif des deux projets (bdanim, embedkit) et organisation GitHub (publique dès M0 ?).
-2. Jeu de test de vieilles BD : quelles planches, et avec quels droits (domaine public, accord des ayants droit) ?
+1. Nom définitif d'embedkit, et organisation GitHub : le dépôt est-il public dès M0 ? Les planches Qahwati des fixtures peuvent-elles être publiées ?
+2. **Jeu de contrôle** : quelles planches d'autres styles (manga, comics, ligne claire, BD sans gouttières blanches) et quels vieux scans, avec quels droits (domaine public, accord des ayants droit) ?
 3. embedkit doit-il viser dès maintenant d'autres langages (bindings) ou rester en Python ?
 4. Liste des autres projets à IA embarquée du porteur, pour valider les interfaces de `tasks/` (quelles tâches seront partagées ?).
 5. Faut-il une interface graphique de bureau (Tauri, etc.) en plus de l'éditeur web local ?
+6. Format webtoon : à quel jalon le rattacher, si la demande se confirme ?
 
 ---
 
@@ -371,8 +460,24 @@ Comportements attendus :
 
 - **Motion comic** : BD animée par mouvements de caméra, calques et effets, sans réanimer entièrement les dessins.
 - **Gouttière** : espace blanc entre deux cases.
+- **Bulle vivante** : bulle détourée qui apparaît à l'écran au moment où elle est lue, au lieu d'être visible en permanence.
 - **Parallaxe 2.5D** : calques plats déplacés à des vitesses différentes pour simuler la profondeur.
 - **Inpainting** : reconstruction d'une zone effacée d'une image.
+- **OCR** : reconnaissance du texte dans une image.
+- **Derja** : arabe dialectal tunisien, écrit ici en lettres arabes.
 - **VLM** : modèle vision-langage (image + texte → texte).
 - **GGUF / ONNX** : formats de fichiers de modèles, pour llama.cpp et ONNX Runtime respectivement.
 - **Niveau 0/1/2** : classique / léger embarqué / lourd optionnel.
+- **Webtoon** : BD verticale lue en défilement continu.
+
+---
+
+## 13. Pistes futures (hors périmètre)
+
+Ces idées ne sont pas planifiées. Elles sont notées pour ne pas être perdues et pour que l'architecture ne les empêche pas.
+
+- **Traduction des bulles** (ex. derja → français ou anglais), en local avec un petit modèle de langage ; le format §6.4 la prépare déjà. Remplacement du texte dans les bulles traduites.
+- **Réanimation des visages** (clignement des yeux, bouche synchronisée), type LivePortrait : retirée pour des raisons de licence et de coût sur CPU. À reconsidérer si un modèle permissif et léger apparaît.
+- **Plans génératifs** (famille Wan via stable-diffusion.cpp) : retirés, trop lourds pour la machine de référence. Le runtime `sdcpp` d'embedkit est abandonné tant que cette piste n'est pas reprise.
+- **Synthèse vocale en derja**, si un modèle à licence permissive apparaît.
+- **Application de bureau** ou mobile (voir §11, question 5).
