@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+*.onnx
+*.gguf
+*.bin
+*.mp4
+controle/
+videos/
+cache/
+projet.json
+.DS_Store

@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bdanim"
+version = "0.1.0"
+description = "Redonner vie aux bandes dessinées : planches → motion comic (100 % open source)"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.9"
+dependencies = ["numpy", "opencv-python-headless"]
+
+[project.scripts]
+bdanim = "bdanim.__main__:main"
+
+[tool.setuptools]
+packages = ["bdanim"]
