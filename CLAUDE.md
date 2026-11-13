@@ -28,7 +28,7 @@ Lis d'abord `docs/PRD.md` : c'est la source de vérité du projet. En cas de dou
 ```bash
 conda activate rawi                         # conda-forge seul (Miniconda Homebrew sur la machine de référence)
 pytest -q                                   # tests
-ruff check . && ruff format --check .       # qualité
+ruff check . && ruff format --check . && mypy   # qualité
 rawi auto apps/rawi/tests/fixtures/qahwati/*.jpg --apercu   # test de bout en bout rapide
 embedkit models list | pull | verify | bench        # (à partir de M0)
 ```

@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -43,8 +44,8 @@ class OnnxModel:
         self.requested_engine = engine
         self.threads = threads
         self.engine: str | None = None  # set once loaded
-        self._session = None
-        self._net = None
+        self._session: Any = None  # onnxruntime.InferenceSession
+        self._net: Any = None  # cv2.dnn.Net
         self.input_names: list[str] = []
         self.output_names: list[str] = []
 
@@ -80,7 +81,7 @@ class OnnxModel:
             return self
         if not self.path.is_file():
             raise RuntimeLoadError(f"Fichier de modèle introuvable : {self.path}")
-        errors = []
+        errors: list[str] = []
         order = (
             ["onnxruntime", "opencv"]
             if self.requested_engine == "auto"

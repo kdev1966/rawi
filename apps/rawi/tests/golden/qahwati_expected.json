@@ -1,0 +1,33 @@
+{
+  "about": "Ground truth for the 8 Qahwati pages (images are private, not in git). Panels in reading order (left to right, as the authors' bubble numbers show), boxes [x, y, w, h] in page pixels, approximate for slanted gutters. Checked by eye on 2026-11-14.",
+  "rtl": false,
+  "pages": {
+    "planche1.jpg": {
+      "boxes": [[0, 0, 1122, 820], [0, 816, 604, 586], [495, 825, 627, 577]]
+    },
+    "planche2.jpg": {
+      "boxes": [[0, 0, 1122, 452], [0, 462, 562, 276], [531, 460, 591, 282], [0, 752, 436, 252], [409, 752, 713, 251], [0, 1011, 1122, 187], [0, 1206, 1122, 196]]
+    },
+    "planche3.jpg": {
+      "boxes": [[0, 0, 1049, 348], [0, 359, 559, 319], [532, 360, 517, 314], [0, 690, 540, 249], [514, 689, 535, 246], [0, 954, 1049, 545]]
+    },
+    "planche4.jpg": {
+      "boxes": [[0, 0, 1049, 560], [0, 568, 558, 432], [578, 569, 471, 432], [0, 1009, 561, 490], [494, 1010, 555, 489]]
+    },
+    "planche5.jpg": {
+      "known_issue": "Row 2 has two panels split by a slanted gutter; v0.1 merges them.",
+      "boxes": [[0, 0, 1049, 391], [0, 400, 525, 395], [477, 400, 572, 395], [0, 805, 598, 273], [570, 804, 479, 272], [0, 1087, 547, 412], [495, 1087, 554, 412]]
+    },
+    "planche6.jpg": {
+      "known_issue": "The last row is one panel; v0.1 cuts it in two.",
+      "boxes": [[0, 0, 1122, 501], [0, 509, 679, 338], [621, 509, 501, 338], [0, 855, 599, 242], [571, 855, 551, 245], [0, 1109, 1122, 293]]
+    },
+    "planche7.jpg": {
+      "known_issue": "The last row has two panels split by a slanted gutter; v0.1 finds three, one a 130 px sliver.",
+      "boxes": [[0, 0, 1049, 458], [0, 468, 610, 346], [579, 468, 470, 347], [0, 823, 432, 265], [482, 829, 567, 259], [0, 1097, 400, 403], [362, 1097, 687, 403]]
+    },
+    "planche8.jpg": {
+      "boxes": [[0, 0, 1049, 397], [0, 412, 1049, 317], [0, 743, 1049, 269], [0, 1025, 1049, 475]]
+    }
+  }
+}

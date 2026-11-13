@@ -300,10 +300,11 @@ Le texte lu est stocké **par bulle**, avec sa langue et son sens d'écriture, e
 
 - planche 5 : deux cases de la 2e rangée fusionnées (gouttière en biais cachée) ;
 - planche 6 : dernière case coupée en deux (prolongement de gouttière à travers une bulle) ;
+- planche 7 : dernière rangée (deux cases séparées en biais) découpée en trois, dont une tranche de 130 px ;
 - les bulles restent visibles en permanence (le « pop » n'est qu'un rebond) ;
 - masque de bulle approximé par une ellipse (bbox) ;
 - détection des cases dépendante de gouttières blanches ; non testée hors Qahwati ;
-- aucun test automatisé ;
+- tests automatisés ajoutés en M0 (85 tests, dont les tests golden Qahwati : planches 5, 6 et 7 en échec connu) ;
 - le script `installer_mac.sh` n'a pas été testé sur macOS 12.
 
 ---
@@ -322,13 +323,13 @@ Le texte lu est stocké **par bulle**, avec sa langue et son sens d'écriture, e
 
 ### M0 — Fondations (prérequis à tout le reste)
 
-1. **Vérifier ONNX Runtime sur la machine de référence** (installation conda-forge/pip, chargement d'un petit modèle ONNX, comparaison avec OpenCV DNN). Conclusion consignée dans un ADR.
-2. **Renommer `bdanim` en `rawi`** : paquet, module Python, commande CLI, README et `CLAUDE.md` (ADR 0001).
-3. Restructurer en monorepo (§6.1), en déplaçant la v0.1 dans `apps/rawi` sans régression.
-4. Créer `embedkit` : `hardware`, `registry`, `store`, `licenses`, runtime `onnx` (+ repli OpenCV DNN), CLI `models`.
-5. Mettre en place pytest, ruff, les types (mypy en mode souple) et une CI GitHub Actions (Linux et macOS).
-6. Introduire un schéma de projet versionné (`"version": 2`, avec la structure de texte §6.4) et une migration depuis la v1.
-7. Écrire des tests « golden » sur les 8 planches Qahwati : nombre de cases et ordre attendus (fichier `expected.json` écrit à la main).
+1. **Vérifier ONNX Runtime sur la machine de référence** (installation conda-forge/pip, chargement d'un petit modèle ONNX, comparaison avec OpenCV DNN). Conclusion consignée dans un ADR. ✅ (ADR 0003)
+2. **Renommer `bdanim` en `rawi`** : paquet, module Python, commande CLI, README et `CLAUDE.md` (ADR 0001). ✅
+3. Restructurer en monorepo (§6.1), en déplaçant la v0.1 dans `apps/rawi` sans régression. ✅
+4. Créer `embedkit` : `hardware`, `registry`, `store`, `licenses`, runtime `onnx` (+ repli OpenCV DNN), CLI `models`. ✅ (+ `bench`, tâche `depth`, premier modèle Depth Anything V2 Small)
+5. Mettre en place pytest, ruff, les types (mypy en mode souple) et une CI GitHub Actions (Linux et macOS). ✅ (CI macOS sur Apple Silicon : GitHub n'a plus de Mac Intel)
+6. Introduire un schéma de projet versionné (`"version": 2`, avec la structure de texte §6.4) et une migration depuis la v1. ✅
+7. Écrire des tests « golden » sur les 8 planches Qahwati : nombre de cases et ordre attendus (fichier `expected.json` écrit à la main). ✅ (5 planches justes ; 5, 6 et 7 en échec connu, voir §7)
 8. **Entrée PDF** : `rawi analyser|auto album.pdf --pages 3-10`, pages extraites à la résolution du scan (pypdfium2, ADR 0004). ✅
 
 **Critères d'acceptation :**
