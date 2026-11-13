@@ -313,7 +313,7 @@ Le texte lu est stocké **par bulle**, avec sa langue et son sens d'écriture, e
 | Jalon | Contenu | Valeur pour l'utilisateur |
 |---|---|---|
 | **M0** | Fondations, renommage, tests | Base saine et mesurée |
-| **v0.2** | Bulles vivantes, OCR ar/fr, sous-titres | Vidéo publiable sous-titrée |
+| **v0.2** | Détection universelle des cases, bulles vivantes, OCR ar/fr, sous-titres | Toute BD, vidéo publiable sous-titrée |
 | **v0.3** | Calques, parallaxe, détourage auto + manuel, éditeur | Vrai effet motion comic, corrections faciles |
 | **v0.4** | Mise en scène par VLM | Caméra et rythme pensés case par case |
 | **v0.5** | Audio | Épisode complet avec voix et ambiance |
@@ -337,7 +337,18 @@ Le texte lu est stocké **par bulle**, avec sa langue et son sens d'écriture, e
 - la CI est verte (tests golden Qahwati verts en local, la CI ne disposant pas de ces planches) ;
 - l'installation et le temps de rendu v0.1 sont mesurés sur la machine de référence.
 
-### v0.2 — Bulles vivantes, OCR arabe/français, sous-titres
+### v0.2 — Détection universelle, bulles vivantes, OCR arabe/français, sous-titres
+
+**Priorité : une détection des cases qui marche sur toutes les BD** (objectif O6). Constat du 14 novembre 2026 sur un scan de magazine de 1979 (Goldorak, *TELEjunior* n° 16, 9 pages) : la lecture du PDF est parfaite, mais la détection v0.1 échoue sur la plupart des pages :
+
+- **cases en biais** et compositions éclatées (pages 7 et 8 vues comme une seule case alors qu'elles en ont 8 à 10) : la v0.1 ne cherche que des gouttières qui traversent la page de bord à bord ;
+- **dessins qui débordent** dans les gouttières ou sortent du cadre (cadres qui chevauchent plusieurs cases) ;
+- **défauts de scan** : ombre de reliure, marges irrégulières ;
+- bulles manquées en nombre ;
+- s'y ajoute la sensibilité à la recompression JPEG (ADR 0004).
+
+Pistes à évaluer, du classique au modèle : cadres de cases détectés comme polygones (contours, segments de droite) plutôt que gouttières horizontales ou verticales ; cases non rectangulaires ; détecteur de cases léger en niveau 1 ; correction manuelle facile en repli. Le format de projet doit accepter des cases polygonales.
+
 
 | Tâche | Niveau 0 | Niveau 1 (par défaut) |
 |---|---|---|
@@ -356,6 +367,7 @@ Comportements attendus :
 - **Images de contrôle** : bulles détectées numérotées, texte lu en regard.
 
 **Critères d'acceptation :**
+- détection des cases correcte sur ≥ 90 % des cases du jeu de contrôle (dont les 9 pages Goldorak), sans régression sur Qahwati ;
 - sur les 8 planches Qahwati, ≥ 90 % des bulles sont correctement détourées, effacées et réapparaissent ;
 - OCR correct sur ≥ 85 % des mots des planches Qahwati (arabe et français), mesuré contre une transcription écrite à la main ;
 - le jeu de contrôle (§11) ne présente pas de régression grossière (bulles manquées en masse, ordre inversé) ;
@@ -450,7 +462,7 @@ Comportements attendus :
 ## 11. Questions ouvertes
 
 1. Nom définitif d'embedkit. (Les planches Qahwati restent privées, hors git.)
-2. **Jeu de contrôle** : quelles planches d'autres styles (manga, comics, ligne claire, BD sans gouttières blanches) et quels vieux scans, avec quels droits (domaine public, accord des ayants droit) ?
+2. **Jeu de contrôle** : quelles planches d'autres styles (manga, comics, ligne claire, BD sans gouttières blanches) et quels vieux scans, avec quels droits (domaine public, accord des ayants droit) ? Premier élément : Goldorak, *TELEjunior* n° 16 (1979), 9 pages, gardé en local comme Qahwati (droits non libres).
 3. embedkit doit-il viser dès maintenant d'autres langages (bindings) ou rester en Python ?
 4. Liste des autres projets à IA embarquée du porteur, pour valider les interfaces de `tasks/` (quelles tâches seront partagées ?).
 5. Faut-il une interface graphique de bureau (Tauri, etc.) en plus de l'éditeur web local ?
