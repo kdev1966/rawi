@@ -10,14 +10,13 @@ import numpy as np
 import onnx
 import pytest
 import yaml
-from onnx import TensorProto, helper
-
 from embedkit import EmbedkitError, licenses, store
 from embedkit.bench import measure, run_isolated
 from embedkit.cli import main
 from embedkit.registry import Registry
 from embedkit.runtimes.onnx import OnnxModel, RuntimeLoadError
 from embedkit.tasks import DepthEstimator, resolve_model
+from onnx import TensorProto, helper
 
 REAL_CACHE = Path.home() / ".cache" / "embedkit"
 

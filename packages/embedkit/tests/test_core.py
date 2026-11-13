@@ -10,7 +10,6 @@ from pathlib import Path
 
 import pytest
 import yaml
-
 from embedkit import EmbedkitError, hardware, licenses, store
 from embedkit.cli import main
 from embedkit.registry import ManifestError, Registry, parse_manifest

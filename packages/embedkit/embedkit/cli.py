@@ -11,7 +11,12 @@ from .registry import Registry
 
 def _table(rows: list[list[str]], header: list[str]) -> str:
     widths = [max(len(str(r[i])) for r in [header, *rows]) for i in range(len(header))]
-    line = lambda r: "  ".join(str(c).ljust(w) for c, w in zip(r, widths)).rstrip()  # noqa: E731
+
+    def line(r: list[str]) -> str:
+        return "  ".join(
+            str(c).ljust(w) for c, w in zip(r, widths, strict=True)
+        ).rstrip()
+
     return "\n".join([line(header), line(["-" * w for w in widths]), *map(line, rows)])
 
 

@@ -1,6 +1,9 @@
 """Analyse d'une planche : cases, ordre de lecture, bulles.
 Dépendances : numpy + OpenCV uniquement (tourne sur CPU, Mac Intel OK)."""
-import json, math
+
+import json
+import math
+
 import cv2
 import numpy as np
 
@@ -42,22 +45,33 @@ def _extend_gutters(g, white):
         if not (ang < 20 or ang > 160 or 70 < ang < 110):
             continue  # on ne garde que les gouttières ~horizontales / ~verticales
         ux, uy = dx / L, dy / L
-        for (sx, sy, sgn) in ((x2, y2, 1), (x1, y1, -1)):
+        for sx, sy, sgn in ((x2, y2, 1), (x1, y1, -1)):
             px, py = float(sx), float(sy)
             # sortir de la gouttière existante
             steps = 0
-            while 0 <= int(px) < w and 0 <= int(py) < h and g[int(py), int(px)] and steps < 40:
-                px += sgn * ux; py += sgn * uy; steps += 1
+            while (
+                0 <= int(px) < w
+                and 0 <= int(py) < h
+                and g[int(py), int(px)]
+                and steps < 40
+            ):
+                px += sgn * ux
+                py += sgn * uy
+                steps += 1
             start = (int(px), int(py))
             gap = 0
             hit = False
             while gap < max_gap:
                 ix, iy = int(round(px)), int(round(py))
                 if not (0 <= ix < w and 0 <= iy < h):
-                    hit = True; break
+                    hit = True
+                    break
                 if g[iy, ix]:
-                    hit = True; break
-                px += sgn * ux; py += sgn * uy; gap += 1
+                    hit = True
+                    break
+                px += sgn * ux
+                py += sgn * uy
+                gap += 1
             if hit and gap > 2:
                 end = (int(px), int(py))
                 if gap > 25:
@@ -73,20 +87,25 @@ def _extend_gutters(g, white):
 
 def _merge_slivers(panels):
     """Fusionne les petits morceaux de case dont la boîte chevauche fortement une voisine."""
-    def area(p): return p["w"] * p["h"]
+
+    def area(p):
+        return p["w"] * p["h"]
+
     changed = True
     while changed:
         changed = False
         panels.sort(key=area)
         for i, a in enumerate(panels):
-            for b in panels[i + 1:]:
+            for b in panels[i + 1 :]:
                 ix = min(a["x"] + a["w"], b["x"] + b["w"]) - max(a["x"], b["x"])
                 iy = min(a["y"] + a["h"], b["y"] + b["h"]) - max(a["y"], b["y"])
                 if ix > 0 and iy > 0 and ix * iy > 0.45 * area(a):
                     x0, y0 = min(a["x"], b["x"]), min(a["y"], b["y"])
-                    x1 = max(a["x"] + a["w"], b["x"] + b["w"]); y1 = max(a["y"] + a["h"], b["y"] + b["h"])
+                    x1 = max(a["x"] + a["w"], b["x"] + b["w"])
+                    y1 = max(a["y"] + a["h"], b["y"] + b["h"])
                     b.update(x=x0, y=y0, w=x1 - x0, h=y1 - y0)
-                    panels.remove(a); changed = True
+                    panels.remove(a)
+                    changed = True
                     break
             if changed:
                 break
@@ -102,7 +121,9 @@ def _reading_order(panels, rtl=False):
             ry0, ry1 = row["y0"], row["y1"]
             overlap = min(cy1, ry1) - max(cy0, ry0)
             if overlap > 0.5 * min(cy1 - cy0, ry1 - ry0):
-                row["items"].append(p); row["y0"] = min(ry0, cy0); row["y1"] = max(ry1, cy1)
+                row["items"].append(p)
+                row["y0"] = min(ry0, cy0)
+                row["y1"] = max(ry1, cy1)
                 break
         else:
             rows.append({"y0": cy0, "y1": cy1, "items": [p]})
@@ -116,9 +137,11 @@ def _bubbles(img, white, gutter, panel):
     """Bulles = zones blanches fermées contenant du texte sombre."""
     H, W = white.shape
     x, y, w, h = panel["x"], panel["y"], panel["w"], panel["h"]
-    sub = (white[y:y + h, x:x + w] & (1 - gutter[y:y + h, x:x + w])).astype(np.uint8)
+    sub = (white[y : y + h, x : x + w] & (1 - gutter[y : y + h, x : x + w])).astype(
+        np.uint8
+    )
     sub = cv2.morphologyEx(sub, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
-    gray = cv2.cvtColor(img[y:y + h, x:x + w], cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(img[y : y + h, x : x + w], cv2.COLOR_BGR2GRAY)
     cnts, _ = cv2.findContours(sub, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     res = []
     for c in cnts:
@@ -169,12 +192,28 @@ def analyze(path, rtl=False, min_panel=0.015):
 def draw_debug(project, out_path):
     img = cv2.imread(project["image"])
     for p in project["panels"]:
-        cv2.rectangle(img, (p["x"], p["y"]), (p["x"] + p["w"], p["y"] + p["h"]), (0, 0, 255), 4)
+        cv2.rectangle(
+            img, (p["x"], p["y"]), (p["x"] + p["w"], p["y"] + p["h"]), (0, 0, 255), 4
+        )
         for b in p["bubbles"]:
-            cv2.rectangle(img, (b["x"], b["y"]), (b["x"] + b["w"], b["y"] + b["h"]), (255, 140, 0), 3)
+            cv2.rectangle(
+                img,
+                (b["x"], b["y"]),
+                (b["x"] + b["w"], b["y"] + b["h"]),
+                (255, 140, 0),
+                3,
+            )
         c = (p["x"] + 30, p["y"] + 55)
         cv2.circle(img, (c[0] + 12, c[1] - 15), 34, (0, 0, 255), -1)
-        cv2.putText(img, str(p["id"]), (c[0] - 5, c[1]), cv2.FONT_HERSHEY_SIMPLEX, 1.4, (255, 255, 255), 4)
+        cv2.putText(
+            img,
+            str(p["id"]),
+            (c[0] - 5, c[1]),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1.4,
+            (255, 255, 255),
+            4,
+        )
     cv2.imwrite(out_path, img)
 
 

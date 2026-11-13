@@ -10,7 +10,6 @@ import cv2
 import numpy as np
 import pypdfium2 as pdfium
 import pytest
-
 from rawi import sources
 from rawi.__main__ import main
 
