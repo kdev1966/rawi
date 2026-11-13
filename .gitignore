@@ -11,3 +11,6 @@ videos/
 cache/
 projet.json
 .DS_Store
+
+# Private test pages (not redistributable): kept locally only
+apps/*/tests/fixtures/qahwati/

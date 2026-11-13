@@ -333,7 +333,7 @@ Le texte lu est stocké **par bulle**, avec sa langue et son sens d'écriture, e
 **Critères d'acceptation :**
 - `rawi auto` produit les mêmes vidéos que `bdanim auto` en v0.1 ;
 - `embedkit models list` fonctionne hors ligne ;
-- la CI est verte ;
+- la CI est verte (tests golden Qahwati verts en local, la CI ne disposant pas de ces planches) ;
 - l'installation et le temps de rendu v0.1 sont mesurés sur la machine de référence.
 
 ### v0.2 — Bulles vivantes, OCR arabe/français, sous-titres
@@ -420,7 +420,7 @@ Comportements attendus :
 | Hors ligne | Après `embedkit models pull`, aucune connexion n'est requise. |
 | Texte | Arabe et français rendus correctement (mise en forme, ligatures, sens bidirectionnel) dans les images de contrôle, l'éditeur et les sous-titres. |
 | Qualité du code | Python 3.11, annotations de types, ruff, docstrings ; aucune fonction de plus de 60 lignes sans raison. |
-| Tests | Unitaires (embedkit), golden (Rawi, Qahwati + jeu de contrôle), smoke test de rendu en `--apercu` en CI. |
+| Tests | Unitaires (embedkit), golden (Rawi, Qahwati + jeu de contrôle), smoke test de rendu en `--apercu` en CI. Les planches Qahwati ne sont **pas publiées** (hors git, `.gitignore`) : leurs tests golden tournent en local et sont marqués « données absentes » en CI ; la CI utilise des planches libres de droits. |
 | Licences | `embedkit licenses audit` liste code et modèles ; la CI échoue si un modèle par défaut n'est pas commercial. |
 | Documentation | README par paquet, ADR pour chaque choix structurant (runtime, modèle par défaut, format projet). |
 
@@ -447,7 +447,7 @@ Comportements attendus :
 
 ## 11. Questions ouvertes
 
-1. Nom définitif d'embedkit, et organisation GitHub : le dépôt est-il public dès M0 ? Les planches Qahwati des fixtures peuvent-elles être publiées ?
+1. Nom définitif d'embedkit. (Les planches Qahwati restent privées, hors git.)
 2. **Jeu de contrôle** : quelles planches d'autres styles (manga, comics, ligne claire, BD sans gouttières blanches) et quels vieux scans, avec quels droits (domaine public, accord des ayants droit) ?
 3. embedkit doit-il viser dès maintenant d'autres langages (bindings) ou rester en Python ?
 4. Liste des autres projets à IA embarquée du porteur, pour valider les interfaces de `tasks/` (quelles tâches seront partagées ?).
