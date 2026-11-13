@@ -13,7 +13,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install ruff mypy types-PyYAML numpy
+      # same tool versions as the reference machine, so CI and local checks agree
+      - run: pip install ruff==0.15.1 mypy==1.19.1 types-PyYAML numpy
       - run: ruff check .
       - run: ruff format --check .
       - run: mypy
@@ -37,7 +38,7 @@ jobs:
           else brew install ffmpeg; fi
       - name: Install packages
         run: |
-          pip install numpy opencv-python-headless pypdfium2 pyyaml onnxruntime onnx pytest
+          pip install numpy opencv-python-headless "pypdfium2>=4.30,<6" pyyaml onnxruntime onnx pytest
           pip install --no-deps -e packages/embedkit -e apps/rawi
       - name: Tests (private Qahwati pages and downloaded models are absent here, those tests are skipped)
         env:

@@ -57,6 +57,17 @@ def _file_hash(path: str) -> str:
     return h.hexdigest()
 
 
+def _image_geometry(obj) -> tuple[tuple[float, float, float, float], tuple[int, int]]:
+    """(bounds on the page in points, size in pixels) of a PDF image object.
+
+    pypdfium2 5.x renamed get_pos() to get_bounds() and get_size() to get_px_size();
+    both generations are supported (conda-forge ships 4.x for Python 3.11).
+    """
+    if hasattr(obj, "get_bounds"):
+        return obj.get_bounds(), obj.get_px_size()
+    return obj.get_pos(), obj.get_size()
+
+
 def _render_scale(page, dpi: int | None) -> float:
     """Scale (pixels per PDF point) for one page.
 
@@ -71,9 +82,8 @@ def _render_scale(page, dpi: int | None) -> float:
     if dpi is None:
         page_area = width_pt * height_pt
         for obj in page.get_objects(filter=[pdfium_c.FPDF_PAGEOBJ_IMAGE]):
-            left, bottom, right, top = obj.get_pos()
+            (left, bottom, right, top), (px_w, _) = _image_geometry(obj)
             if (right - left) * (top - bottom) >= 0.8 * page_area:
-                px_w, _ = obj.get_size()
                 scale = px_w / max(right - left, 1e-6)
                 break
     # pypdfium2 sizes the bitmap with math.ceil(size_pt * scale): without this tiny margin,
