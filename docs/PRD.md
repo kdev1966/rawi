@@ -350,6 +350,8 @@ Le texte lu est stocké **par bulle**, avec sa langue et son sens d'écriture, e
 
 **Avancement (14 novembre 2026, ADR 0005)** : vérité Goldorak écrite et validée ; outil de mesure `python -m rawi.evaluate` ; nouvelle détection par défaut (`rawi/panels.py`) : Goldorak de 39 % à **86 %** de cases retrouvées (précision 74 % → 90 %), Qahwati 93 % → 91 %. L'ancienne reste disponible (`--detection v01`). Reste à faire pour atteindre 90 % : cases sans cadre qui débordent, cartouches qui traversent une gouttière.
 
+**Bulles vivantes (14 novembre 2026)** : format de projet 3 (contour réel de chaque bulle) ; la page est montrée sans ses bulles (fond rempli par une moyenne douce des couleurs voisines, niveau 0) et chaque bulle apparaît à sa lecture, avec rebond et fondu, puis reste visible. Détection des bulles refaite sur toute la page (`rawi/bubbles.py`) : sur Qahwati, 89 % des bulles trouvées et 91 % de détections justes (avant : 85 % / 68 %), mesuré contre une vérité de 51 bulles (`qahwati_bubbles_expected.json`, à valider par le porteur). Sur Goldorak, environ la moitié des bulles seulement (estimation visuelle : bulles ouvertes, collées au bord des cases) ; à mesurer.
+
 Pistes à évaluer, du classique au modèle : cadres de cases détectés comme polygones (contours, segments de droite) plutôt que gouttières horizontales ou verticales ; cases non rectangulaires ; détecteur de cases léger en niveau 1 ; correction manuelle facile en repli. Le format de projet doit accepter des cases polygonales.
 
 

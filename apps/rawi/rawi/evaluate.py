@@ -1,9 +1,11 @@
 """Measure panel detection against hand-written ground truth (development tool).
 
-    python -m rawi.evaluate qahwati goldorak [--controle dossier]
+    python -m rawi.evaluate qahwati goldorak qahwati_bubbles [--controle dossier]
 
 Ground truth lives in tests/golden/<set>_expected.json; page images are local fixtures
-(tests/fixtures/<set>/), never in git. Matching is greedy on IoU >= MIN_IOU; optional
+(tests/fixtures/<set>/, or the "fixtures" folder named in the truth file), never in git.
+A truth file measures panels by default, or bubbles with "what": "bubbles". Matching is
+greedy on IoU >= MIN_IOU (or the file's "min_iou"); optional
 truth panels (unframed decorations, titles) are neither required nor counted as extra.
 """
 
@@ -107,12 +109,19 @@ def load_truth(name: str) -> dict:
     for key, spec in data["pages"].items():
         panels = spec.get("panels") or [{"box": b} for b in spec["boxes"]]
         pages[key] = panels
-    return {"rtl": data.get("rtl", False), "source": data.get("source"), "pages": pages}
+    return {
+        "rtl": data.get("rtl", False),
+        "source": data.get("source"),
+        "fixtures": data.get("fixtures", name),
+        "what": data.get("what", "panels"),
+        "min_iou": data.get("min_iou", MIN_IOU),
+        "pages": pages,
+    }
 
 
 def page_images(name: str, truth: dict) -> dict[str, Path] | None:
     """Map truth page keys to local image files; None if the private fixtures are absent."""
-    folder = TESTS / "fixtures" / name
+    folder = TESTS / "fixtures" / truth["fixtures"]
     if not folder.is_dir():
         return None
     if truth["source"]:  # a PDF: pages "1", "2"... rendered into the fixture cache
@@ -174,8 +183,11 @@ def evaluate(
     scores = []
     for key, path in images.items():
         page = detector(str(path), rtl=truth["rtl"])
-        found = [[p["x"], p["y"], p["w"], p["h"]] for p in page["panels"]]
-        s = score_page(key, found, truth["pages"][key])
+        items = page["panels"]
+        if truth["what"] == "bubbles":
+            items = [b for p in page["panels"] for b in p["bubbles"]]
+        found = [[p["x"], p["y"], p["w"], p["h"]] for p in items]
+        s = score_page(key, found, truth["pages"][key], truth["min_iou"])
         scores.append(s)
         if controle:
             draw(

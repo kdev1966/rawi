@@ -8,12 +8,12 @@ Aucune API payante, aucun abonnement : tout tourne en local, même sur un **MacB
 1. **Analyse** de chaque planche, image ou page de PDF (OpenCV, sans IA lourde) :
    - détection des cases, y compris en biais, sur papier blanc ou jauni, et quand une bulle chevauche la gouttière (`--detection v01` pour l'ancienne méthode) ;
    - ordre de lecture gauche → droite (ou droite → gauche avec `--rtl`) ;
-   - détection des bulles et estimation du temps de lecture ;
+   - détection des bulles sur toute la page (contour réel) et estimation du temps de lecture ;
    - image de **contrôle** pour vérifier le résultat en un coup d'œil.
 2. **Rendu vidéo** :
    - plan d'ensemble de la planche, puis caméra qui voyage de case en case (mouvements adoucis) ;
    - léger zoom avant (effet Ken Burns) et « projecteur » qui assombrit les autres cases ;
-   - petit rebond des bulles dans l'ordre de lecture ;
+   - page montrée sans ses bulles ; chaque bulle apparaît à sa lecture (rebond, fondu) puis reste visible ;
    - fond flouté, formats 9:16, 16:9 ou 1:1, musique de fond optionnelle.
 3. **Projet modifiable** : tout est enregistré dans `projet.json` (cases, ordre, durées). On corrige à la main, on relance le rendu.
 

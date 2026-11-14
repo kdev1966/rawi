@@ -1,0 +1,102 @@
+{
+  "about": "Ground truth for speech balloons on the 8 Qahwati pages (images are private, not in git). Boxes [x, y, w, h] in page pixels. Numbered speech balloons are required; captions and title banners are optional (neither required nor counted as extra). First draft by Claude on 2026-11-14, to be validated by the project owner.",
+  "rtl": false,
+  "fixtures": "qahwati",
+  "what": "bubbles",
+  "min_iou": 0.5,
+  "pages": {
+    "planche1.jpg": {
+      "panels": [
+        {"box": [310, 437, 396, 196], "note": "2"},
+        {"box": [308, 838, 287, 247], "note": "3"},
+        {"box": [564, 896, 310, 310], "note": "4"},
+        {"box": [162, 177, 777, 115], "optional": true, "note": "caption"},
+        {"box": [195, 15, 700, 150], "optional": true, "note": "title banner"}
+      ]
+    },
+    "planche2.jpg": {
+      "panels": [
+        {"box": [790, 50, 286, 226], "note": "1"},
+        {"box": [230, 464, 317, 249], "note": "2"},
+        {"box": [558, 461, 322, 249], "note": "3"},
+        {"box": [578, 760, 175, 215], "note": "4"},
+        {"box": [752, 760, 183, 190], "note": "5"},
+        {"box": [364, 1023, 149, 127], "note": "6"},
+        {"box": [526, 1020, 290, 166], "note": "7"},
+        {"box": [182, 755, 250, 221], "note": "8"},
+        {"box": [235, 10, 600, 70], "optional": true, "note": "title banner"},
+        {"box": [205, 1210, 700, 95], "optional": true, "note": "caption"},
+        {"box": [255, 1320, 610, 65], "optional": true, "note": "caption"}
+      ]
+    },
+    "planche3.jpg": {
+      "panels": [
+        {"box": [250, 25, 305, 230], "note": "1"},
+        {"box": [654, 25, 189, 155], "note": "2"},
+        {"box": [245, 368, 285, 267], "note": "3"},
+        {"box": [557, 370, 276, 249], "note": "4"},
+        {"box": [255, 698, 256, 214], "note": "5"},
+        {"box": [552, 698, 258, 222], "note": "6"},
+        {"box": [115, 955, 830, 125], "optional": true, "note": "caption"}
+      ]
+    },
+    "planche4.jpg": {
+      "panels": [
+        {"box": [195, 575, 330, 235], "note": "1"},
+        {"box": [580, 575, 270, 225], "note": "2"},
+        {"box": [240, 1015, 255, 300], "note": "3"},
+        {"box": [530, 1015, 335, 325], "note": "4"},
+        {"box": [98, 153, 829, 98], "optional": true, "note": "caption"},
+        {"box": [190, 15, 660, 120], "optional": true, "note": "title banner"}
+      ]
+    },
+    "planche5.jpg": {
+      "panels": [
+        {"box": [243, 0, 284, 208], "note": "1"},
+        {"box": [543, 14, 255, 209], "note": "2"},
+        {"box": [214, 405, 285, 271], "note": "3"},
+        {"box": [553, 418, 231, 164], "note": "4"},
+        {"box": [810, 411, 234, 182], "note": "5"},
+        {"box": [285, 809, 295, 230], "note": "6"},
+        {"box": [621, 840, 195, 160], "note": "7"},
+        {"box": [256, 1091, 275, 196], "note": "8"},
+        {"box": [526, 1091, 338, 304], "note": "9"},
+        {"box": [40, 735, 960, 60], "optional": true, "note": "caption"}
+      ]
+    },
+    "planche6.jpg": {
+      "panels": [
+        {"box": [245, 167, 250, 153], "note": "1"},
+        {"box": [760, 167, 285, 165], "note": "2"},
+        {"box": [282, 515, 265, 205], "note": "3"},
+        {"box": [215, 855, 225, 145], "note": "4"},
+        {"box": [835, 865, 238, 156], "note": "5"},
+        {"box": [369, 1116, 390, 184], "note": "6"},
+        {"box": [43, 12, 1033, 139], "optional": true, "note": "caption"}
+      ]
+    },
+    "planche7.jpg": {
+      "panels": [
+        {"box": [265, 141, 218, 144], "note": "1"},
+        {"box": [256, 468, 343, 250], "note": "2"},
+        {"box": [831, 471, 200, 202], "note": "3"},
+        {"box": [191, 848, 280, 202], "note": "4"},
+        {"box": [518, 848, 263, 221], "note": "5"},
+        {"box": [177, 1123, 197, 182], "note": "6"},
+        {"box": [384, 1104, 407, 307], "note": "7"},
+        {"box": [10, 10, 1030, 70], "optional": true, "note": "caption"}
+      ]
+    },
+    "planche8.jpg": {
+      "panels": [
+        {"box": [298, 415, 320, 192]},
+        {"box": [255, 1029, 315, 197]},
+        {"box": [574, 1030, 273, 250]},
+        {"box": [125, 10, 800, 80], "optional": true, "note": "caption"},
+        {"box": [230, 100, 590, 75], "optional": true, "note": "caption"},
+        {"box": [445, 750, 560, 110], "optional": true, "note": "caption"},
+        {"box": [830, 1400, 200, 60], "optional": true, "note": "caption"}
+      ]
+    }
+  }
+}

@@ -6,6 +6,7 @@ import math
 import cv2
 import numpy as np
 
+from . import bubbles as bubble_detection
 from . import panels as panel_detection
 
 DETECTIONS = ("nouvelle", "v01")  # nouvelle = v0.2 method (rawi.panels), v01 = original
@@ -136,42 +137,6 @@ def _reading_order(panels, rtl=False):
     return ordered
 
 
-def _bubbles(img, white, gutter, panel):
-    """Bulles = zones blanches fermées contenant du texte sombre."""
-    H, W = white.shape
-    x, y, w, h = panel["x"], panel["y"], panel["w"], panel["h"]
-    sub = (white[y : y + h, x : x + w] & (1 - gutter[y : y + h, x : x + w])).astype(
-        np.uint8
-    )
-    sub = cv2.morphologyEx(sub, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
-    gray = cv2.cvtColor(img[y : y + h, x : x + w], cv2.COLOR_BGR2GRAY)
-    cnts, _ = cv2.findContours(sub, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    res = []
-    for c in cnts:
-        bx, by, bw, bh = cv2.boundingRect(c)
-        if bw * bh < 0.004 * H * W or bw < 40 or bh < 30:
-            continue
-        fill = np.zeros_like(sub)
-        cv2.drawContours(fill, [c], -1, 1, -1)
-        area = int(fill.sum())
-        solidity = area / max(cv2.contourArea(cv2.convexHull(c)), 1)
-        dark = int(((gray < 100) & (fill > 0)).sum())
-        ratio = dark / max(area, 1)
-        if solidity > 0.75 and 0.03 < ratio < 0.45:
-            outline = cv2.approxPolyDP(c, 1.5, True).reshape(-1, 2) + (x, y)
-            res.append(
-                {
-                    "x": x + bx,
-                    "y": y + by,
-                    "w": bw,
-                    "h": bh,
-                    "text_px": dark,
-                    "polygon": outline.astype(int).tolist(),
-                }
-            )
-    return res
-
-
 def reading_time(bubbles):
     """Durée d'affichage d'une case (s) estimée d'après la quantité de texte."""
     text = sum(b["text_px"] for b in bubbles)
@@ -198,7 +163,8 @@ def analyze(path, rtl=False, min_panel=0.015, detection="nouvelle"):
         raise FileNotFoundError(path)
     H, W = img.shape[:2]
     white = _white_mask(img)
-    gutter = _extend_gutters(_gutter_mask(white), white)
+    raw_gutter = _gutter_mask(white)
+    gutter = _extend_gutters(raw_gutter, white)
     if detection == "v01":
         panels = _panels_v01(gutter, min_panel)
     else:
@@ -206,9 +172,9 @@ def analyze(path, rtl=False, min_panel=0.015, detection="nouvelle"):
     if not panels:  # page sans gouttière : une seule case
         panels = [{"x": 0, "y": 0, "w": W, "h": H}]
     panels = _reading_order(panels, rtl)
+    bubble_detection.assign(bubble_detection.detect(img, white, raw_gutter), panels)
     for i, p in enumerate(panels):
         p["id"] = i + 1
-        p["bubbles"] = _bubbles(img, white, gutter, p)
         p["duration"] = reading_time(p["bubbles"])
     return {"image": path, "width": W, "height": H, "rtl": rtl, "panels": panels}
 

@@ -75,6 +75,7 @@ FLOORS = {
     ("goldorak", "v01"): (0.39, 0.74),
     ("qahwati", "nouvelle"): (0.91, 0.85),
     ("goldorak", "nouvelle"): (0.85, 0.90),
+    ("qahwati_bubbles", "nouvelle"): (0.89, 0.91),
 }
 
 
