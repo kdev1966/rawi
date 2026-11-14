@@ -6,6 +6,10 @@ import math
 import cv2
 import numpy as np
 
+from . import panels as panel_detection
+
+DETECTIONS = ("nouvelle", "v01")  # nouvelle = v0.2 method (rawi.panels), v01 = original
+
 
 def _white_mask(img):
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -164,13 +168,8 @@ def reading_time(bubbles):
     return round(min(max(1.8 + text / 2600.0, 2.2), 7.5), 2)
 
 
-def analyze(path, rtl=False, min_panel=0.015):
-    img = cv2.imread(path)
-    if img is None:
-        raise FileNotFoundError(path)
-    H, W = img.shape[:2]
-    white = _white_mask(img)
-    gutter = _extend_gutters(_gutter_mask(white), white)
+def _panels_v01(gutter, min_panel):
+    H, W = gutter.shape
     gd = cv2.dilate(gutter, np.ones((3, 3), np.uint8))
     n, lab, st, _ = cv2.connectedComponentsWithStats((1 - gd).astype(np.uint8), 4)
     panels = []
@@ -178,9 +177,25 @@ def analyze(path, rtl=False, min_panel=0.015):
         x, y, w, h, a = (int(v) for v in st[i])
         if a > min_panel * H * W:
             panels.append({"x": x, "y": y, "w": w, "h": h})
+    return _merge_slivers(panels)
+
+
+def analyze(path, rtl=False, min_panel=0.015, detection="nouvelle"):
+    if detection not in DETECTIONS:
+        raise ValueError(f"detection must be one of {DETECTIONS}")
+    img = cv2.imread(path)
+    if img is None:
+        raise FileNotFoundError(path)
+    H, W = img.shape[:2]
+    white = _white_mask(img)
+    gutter = _extend_gutters(_gutter_mask(white), white)
+    if detection == "v01":
+        panels = _panels_v01(gutter, min_panel)
+    else:
+        panels = panel_detection.detect(img, gutter)
     if not panels:  # page sans gouttière : une seule case
         panels = [{"x": 0, "y": 0, "w": W, "h": H}]
-    panels = _reading_order(_merge_slivers(panels), rtl)
+    panels = _reading_order(panels, rtl)
     for i, p in enumerate(panels):
         p["id"] = i + 1
         p["bubbles"] = _bubbles(img, white, gutter, p)

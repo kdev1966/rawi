@@ -13,7 +13,7 @@ def cmd_analyser(a):
     pages = []
     os.makedirs(a.controle, exist_ok=True)
     for img in expand_inputs(a.images, a.dossier_pages, pages=a.pages, dpi=a.dpi):
-        page = analyze(img, rtl=a.rtl)
+        page = analyze(img, rtl=a.rtl, detection=a.detection)
         pages.append(page)
         dbg = os.path.join(
             a.controle, os.path.splitext(os.path.basename(img))[0] + "_controle.jpg"
@@ -65,6 +65,12 @@ def main(argv=None):
         )
         p.add_argument(
             "--controle", default="controle", help="dossier des images de contrôle"
+        )
+        p.add_argument(
+            "--detection",
+            default="nouvelle",
+            choices=["nouvelle", "v01"],
+            help="méthode de détection des cases (v01 : celle de la v0.1)",
         )
         p.add_argument(
             "--pages", help="PDF : pages à prendre, ex. 3-10,12 (par défaut : toutes)"

@@ -6,7 +6,7 @@ Aucune API payante, aucun abonnement : tout tourne en local, même sur un **MacB
 ## Ce que fait la v0.1
 
 1. **Analyse** de chaque planche, image ou page de PDF (OpenCV, sans IA lourde) :
-   - détection des cases (y compris gouttières en biais et bulles qui débordent) ;
+   - détection des cases, y compris en biais, sur papier blanc ou jauni, et quand une bulle chevauche la gouttière (`--detection v01` pour l'ancienne méthode) ;
    - ordre de lecture gauche → droite (ou droite → gauche avec `--rtl`) ;
    - détection des bulles et estimation du temps de lecture ;
    - image de **contrôle** pour vérifier le résultat en un coup d'œil.
@@ -53,6 +53,9 @@ rawi rendre projet.json --tout
 
 # BD lue de droite à gauche (manga, certaines BD arabes)
 rawi auto pages/*.jpg --rtl
+
+# Ancienne détection des cases (v0.1), si la nouvelle se trompe sur une planche
+rawi auto pages/*.jpg --detection v01
 
 # Album PDF : toutes les pages, ou une sélection
 rawi auto album.pdf
