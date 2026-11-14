@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 import pytest
 from rawi import layers
-from rawi.render import POP, bubble_schedule, frames
+from rawi.render import frames
 
 
 def page_with_bubble(h=400, w=300):
@@ -68,17 +68,6 @@ def test_balloon_without_text_gives_no_sprite():
     img, b = page_with_bubble()
     img[125:135, 120:180] = 255  # remove the text
     assert layers.build_layers(img, [b]).sprites == {}
-
-
-@pytest.mark.parametrize(("n", "hold"), [(0, 3.0), (1, 2.2), (3, 7.5), (6, 3.0)])
-def test_bubble_schedule_fits_the_hold(n, hold):
-    starts = bubble_schedule(n, hold)
-    assert len(starts) == n
-    assert starts == sorted(starts)
-    if n:
-        assert starts[0] > 0 and starts[-1] + POP <= max(
-            hold, starts[0] + (n - 1) * 0.3 + POP
-        )
 
 
 def test_bubbles_hidden_then_shown(tmp_path):

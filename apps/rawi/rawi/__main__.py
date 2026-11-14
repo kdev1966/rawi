@@ -1,9 +1,10 @@
 import argparse
 import os
 import sys
+import tempfile
 import time
 
-from . import project
+from . import project, subtitles
 from .analyze import analyze, draw_debug
 from .render import FORMATS, render
 from .sources import InputError, expand_inputs
@@ -69,8 +70,47 @@ def cmd_rendre(a, projet=None):
         nom = "episode_complet" if a.tout else f"episode_{i:02d}"
         out = os.path.join(a.dossier, f"{nom}_{a.format.replace(':', 'x')}.mp4")
         t = time.time()
-        d = render(pages, out, fmt=a.format, fps=a.fps, scale=scale, music=a.musique)
+        items = (
+            subtitles.cues(
+                pages,
+                a.fps,
+                keep_names=a.garder_noms,
+                names=subtitles.speaker_names(projet["pages"]),
+            )
+            if a.sous_titres != "aucun"
+            else []
+        )
+        srt_path, burn, temporary = None, None, None
+        if items and a.sous_titres in ("srt", "les-deux"):
+            srt_path = os.path.splitext(out)[0] + ".srt"
+            subtitles.write_srt(srt_path, items)
+        if items and a.sous_titres in ("incrustes", "les-deux"):
+            if srt_path is None:
+                fd, temporary = tempfile.mkstemp(suffix=".srt")
+                os.close(fd)
+                subtitles.write_srt(temporary, items)
+            burn = srt_path or temporary
+        try:
+            d = render(
+                pages,
+                out,
+                fmt=a.format,
+                fps=a.fps,
+                scale=scale,
+                music=a.musique,
+                burn_srt=burn,
+            )
+        finally:
+            if temporary:
+                os.remove(temporary)
         print(f"✓ {out}  ({d:.1f} s de vidéo, rendu en {time.time() - t:.0f} s)")
+        if a.sous_titres != "aucun":
+            if not items:
+                print("  (aucun texte de bulle : pas de sous-titres)")
+            elif srt_path:
+                print(f"  sous-titres : {srt_path} ({len(items)})")
+            else:
+                print(f"  sous-titres incrustés ({len(items)})")
 
 
 def main(argv=None):
@@ -132,6 +172,19 @@ def main(argv=None):
             help="une seule vidéo pour toutes les planches",
         )
         p.add_argument("--musique", help="fichier audio de fond (optionnel)")
+        p.add_argument(
+            "--sous-titres",
+            dest="sous_titres",
+            default="srt",
+            choices=["aucun", "srt", "incrustes", "les-deux"],
+            help="sous-titres tirés du texte des bulles : fichier .srt, incrustés, ou les deux",
+        )
+        p.add_argument(
+            "--garder-noms",
+            dest="garder_noms",
+            action="store_true",
+            help="garder le nom de celui qui parle (« Nom: ») au début des sous-titres",
+        )
 
     p = sub.add_parser("analyser", help="détecter cases, ordre de lecture et bulles")
     opts_analyse(p)

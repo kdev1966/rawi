@@ -16,6 +16,7 @@ import cv2
 import numpy as np
 
 from .layers import bubble_ink, bubble_mask
+from .pacing import panel_duration
 
 LINE_REL = 0.08  # a text row holds at least this fraction of the busiest row's ink
 MERGE_REL = 0.15  # a band with less ink than this fraction of the richest one is a diacritic band
@@ -24,7 +25,7 @@ MIN_CONFIDENCE = (
     0.5  # lines read with less confidence are dropped: no text beats wrong text
 )
 
-_ARABIC = re.compile("[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]")
+_ARABIC = re.compile("[\u0600-\u06ff\u0750-\u077f\ufb50-\ufdff\ufe70-\ufeff]")
 _LATIN = re.compile("[A-Za-zÀ-ɏ]")
 
 
@@ -110,7 +111,11 @@ def segments(text: str) -> list[dict]:
 
 
 def read_bubble(img: np.ndarray, bubble: dict, recognizer) -> tuple[str, float]:
-    """(text, mean line confidence) of one balloon; ("", 0.0) when nothing can be read."""
+    """(text, mean line confidence) of one balloon, one line per text line.
+
+    ("", 0.0) when nothing can be read. Line breaks are kept: a speaker's name stands alone
+    on the first line, which lets the subtitles recognise and drop it.
+    """
     clean = ink_image(img, bubble)
     if clean is None:
         return "", 0.0
@@ -129,7 +134,7 @@ def read_bubble(img: np.ndarray, bubble: dict, recognizer) -> tuple[str, float]:
         if text and conf >= MIN_CONFIDENCE:
             texts.append(text)
             confs.append(conf)
-    return " ".join(texts), (float(np.mean(confs)) if confs else 0.0)
+    return "\n".join(texts), (float(np.mean(confs)) if confs else 0.0)
 
 
 def read_page(page: dict, recognizer, img: np.ndarray | None = None) -> int:
@@ -156,4 +161,5 @@ def read_page(page: dict, recognizer, img: np.ndarray | None = None) -> int:
                 source="ocr" if text else None,
             )
             count += bool(text)
+        panel["duration"] = panel_duration(panel["bubbles"])  # now from the text read
     return count

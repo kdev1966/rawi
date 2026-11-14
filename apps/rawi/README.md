@@ -62,6 +62,11 @@ rawi auto pages/*.jpg --detection v01
 # est téléchargé au premier usage, puis tout fonctionne hors ligne)
 rawi auto pages/*.jpg --ocr non
 
+# Sous-titres tirés du texte des bulles : .srt à côté de la vidéo (par défaut),
+# incrustés dans l'image, les deux, ou aucun ; le nom de celui qui parle est retiré
+rawi auto pages/*.jpg --sous-titres les-deux
+rawi rendre projet.json --sous-titres incrustes --garder-noms
+
 # Album PDF : toutes les pages, ou une sélection
 rawi auto album.pdf
 rawi auto album.pdf --pages 3-10,12

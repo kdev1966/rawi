@@ -8,6 +8,7 @@ import numpy as np
 
 from . import bubbles as bubble_detection
 from . import panels as panel_detection
+from .pacing import panel_duration
 
 DETECTIONS = ("nouvelle", "v01")  # nouvelle = v0.2 method (rawi.panels), v01 = original
 
@@ -137,12 +138,6 @@ def _reading_order(panels, rtl=False):
     return ordered
 
 
-def reading_time(bubbles):
-    """Durée d'affichage d'une case (s) estimée d'après la quantité de texte."""
-    text = sum(b["text_px"] for b in bubbles)
-    return round(min(max(1.8 + text / 2600.0, 2.2), 7.5), 2)
-
-
 def _panels_v01(gutter, min_panel):
     H, W = gutter.shape
     gd = cv2.dilate(gutter, np.ones((3, 3), np.uint8))
@@ -175,7 +170,7 @@ def analyze(path, rtl=False, min_panel=0.015, detection="nouvelle"):
     bubble_detection.assign(bubble_detection.detect(img, white, raw_gutter), panels)
     for i, p in enumerate(panels):
         p["id"] = i + 1
-        p["duration"] = reading_time(p["bubbles"])
+        p["duration"] = panel_duration(p["bubbles"])
     return {"image": path, "width": W, "height": H, "rtl": rtl, "panels": panels}
 
 

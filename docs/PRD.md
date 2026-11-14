@@ -367,9 +367,9 @@ Pistes à évaluer, du classique au modèle : cadres de cases détectés comme p
 Comportements attendus :
 
 - **Bulles vivantes** : chaque bulle est un calque PNG (alpha) découpé selon son contour réel ; elle **apparaît au bon moment**, dans l'ordre de lecture de la case (scale 0,85 → 1,0 avec rebond, ou fondu), le fond étant reconstitué dessous.
-- **Durée par bulle** calculée à partir de la longueur du texte lu (repli : pixels de texte, comme en v0.1).
+- **Durée par bulle** calculée à partir de la longueur du texte lu (repli : pixels de texte, comme en v0.1). ✅ `rawi/pacing.py` : 14 caractères par seconde, 1,2 s minimum ; chaque bulle attend que la précédente soit lue ; durée de la case = somme, entre 2,2 et 12 s.
 - **Texte mixte** : une même bulle peut contenir de l'arabe et du français ; chaque segment garde son sens d'écriture (§6.4).
-- **Sous-titres** : fichier `.srt` exporté et/ou sous-titres incrustés (arabe correctement mis en forme et lié), synchronisés sur l'apparition des bulles. Option `--sous-titres {aucun,srt,incrustes,les-deux}`.
+- **Sous-titres** : fichier `.srt` exporté et/ou sous-titres incrustés (arabe correctement mis en forme et lié), synchronisés sur l'apparition des bulles. Option `--sous-titres {aucun,srt,incrustes,les-deux}`. ✅ `srt` par défaut (le texte lu n'est juste qu'aux deux tiers : rien n'est gravé dans l'image sans le demander) ; calage sur les images rendues (même déroulé que le rendu) ; nom de celui qui parle retiré (« Nom: », ou nom seul en tête de plusieurs bulles quand l'OCR a perdu le deux-points), `--garder-noms` pour le garder ; incrustation libass vérifiée sur la machine de référence.
 - **Corrections** : texte et ordre des bulles modifiables dans `projet.json` ; une correction manuelle est conservée.
 - **Images de contrôle** : bulles détectées numérotées, texte lu en regard.
 

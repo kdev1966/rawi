@@ -1,6 +1,7 @@
 """Rendu motion comic : caméra case par case, projecteur, texte des bulles qui apparaît à la lecture.
 Dépendances : numpy, OpenCV, FFmpeg (binaire)."""
 
+import math
 import shutil
 import subprocess
 
@@ -8,6 +9,7 @@ import cv2
 import numpy as np
 
 from .layers import build_layers
+from .pacing import bubble_starts
 from .project import bubble_reading_order
 
 FORMATS = {"9:16": (1080, 1920), "16:9": (1920, 1080), "1:1": (1080, 1080)}
@@ -55,9 +57,6 @@ def _matrix(rect, W, H, zoom=1.0, margin=0.92):
 
 
 POP = 0.45  # s, duration of a bubble text's appearance
-FIRST_BUBBLE = 0.25  # s into the panel before the first bubble appears
-BUBBLE_GAP = 0.9  # s between bubbles, shortened when the panel is short
-READ_TAIL = 1.2  # s left after the last bubble appears
 
 
 def _ease_out_back(t):
@@ -91,14 +90,6 @@ def _draw_popping(frame, sprite, M, t):
     frame[fy0:fy1, fx0:fx1] = (roi * (1 - a) + c * a).astype(np.uint8)
 
 
-def bubble_schedule(n, hold):
-    """Seconds into a panel's hold at which each of its ``n`` bubbles starts to appear."""
-    if n == 0:
-        return []
-    gap = min(BUBBLE_GAP, max((hold - FIRST_BUBBLE - READ_TAIL) / n, 0.3))
-    return [FIRST_BUBBLE + k * gap for k in range(n)]
-
-
 def frames(page, fmt="9:16", fps=30, scale=1.0):
     """Yield the frames of one page: overview, panel by panel, final overview.
 
@@ -116,7 +107,9 @@ def frames(page, fmt="9:16", fps=30, scale=1.0):
     ]
     layers = build_layers(img, all_bubbles)
     ids_by_panel = {}
+    ordered_by_panel = {}
     for i, p in enumerate(page["panels"]):
+        ordered_by_panel[i] = _ordered_bubbles(p["bubbles"], rtl)
         ids_by_panel[i] = [
             b.get("id") or f"b{i}-{p['bubbles'].index(b)}"
             for b in _ordered_bubbles(p["bubbles"], rtl)
@@ -146,8 +139,13 @@ def frames(page, fmt="9:16", fps=30, scale=1.0):
         # 2) hold: slight zoom in (Ken Burns), spotlight, bubbles appearing
         n = int(shot["hold"] * fps)
         p = shot["panel"]
-        ids = ids_by_panel[page["panels"].index(p)] if p is not None else []
-        starts = bubble_schedule(len(ids), shot["hold"])
+        index = page["panels"].index(p) if p is not None else None
+        ids = ids_by_panel[index] if index is not None else []
+        starts = (
+            bubble_starts(ordered_by_panel[index], shot["hold"])
+            if index is not None
+            else []
+        )
         if p is None and prev is not None:
             shown.update(layers.sprites)  # final overview: the complete page
         for f in range(n):
@@ -167,6 +165,37 @@ def frames(page, fmt="9:16", fps=30, scale=1.0):
             yield fr
         shown.update(i for i in ids if i in layers.sprites)
         prev = shot
+
+
+def bubble_timeline(page, fps=30):
+    """(page duration in s, [(bubble, appears_at, until)]) exactly as frames() renders them.
+
+    A bubble's text starts to appear at ``appears_at``; ``until`` is the moment the next
+    bubble of the same panel appears, or the end of the panel's hold. Times are aligned on
+    frames, so subtitles built from them stay in sync with the video.
+    """
+    rtl = page.get("rtl", False)
+    shots, tr = build_shots(page)
+    frame = 0
+    events = []
+    prev = None
+    for shot in shots:
+        if prev is not None:
+            frame += int(tr * fps)
+        n = int(shot["hold"] * fps)
+        p = shot["panel"]
+        if p is not None:
+            bubbles = _ordered_bubbles(p["bubbles"], rtl)
+            starts = bubble_starts(bubbles, shot["hold"])
+            appears = [(frame + math.ceil(s * fps - 1e-9)) / fps for s in starts]
+            end = (frame + n) / fps
+            for k, (b, at) in enumerate(zip(bubbles, appears, strict=True)):
+                if at < end:
+                    until = min(appears[k + 1], end) if k + 1 < len(appears) else end
+                    events.append((b, at, until))
+        frame += n
+        prev = shot
+    return frame / fps, events
 
 
 def _ordered_bubbles(bubbles, rtl):
@@ -214,7 +243,10 @@ def _encoder(ffmpeg, crf):
     return ["-c:v", "mpeg4", "-q:v", "3"]
 
 
-def render(pages, out, fmt="9:16", fps=30, scale=1.0, music=None, crf=20):
+def render(
+    pages, out, fmt="9:16", fps=30, scale=1.0, music=None, crf=20, burn_srt=None
+):
+    """Encode the pages into ``out``; ``burn_srt``: a .srt file burned into the picture."""
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
         raise RuntimeError("FFmpeg introuvable : installez-le (voir README).")
@@ -237,6 +269,10 @@ def render(pages, out, fmt="9:16", fps=30, scale=1.0, music=None, crf=20):
     ]
     if music:
         cmd += ["-i", music, "-shortest", "-c:a", "aac", "-b:a", "160k"]
+    if burn_srt:
+        from .subtitles import BURN_STYLE, filter_path
+
+        cmd += ["-vf", f"subtitles={filter_path(burn_srt)}:force_style='{BURN_STYLE}'"]
     cmd += _encoder(ffmpeg, crf) + [
         "-pix_fmt",
         "yuv420p",

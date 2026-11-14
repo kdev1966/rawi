@@ -58,7 +58,7 @@ def test_read_bubble_reads_lines_top_to_bottom():
     img, b = balloon_page()
     rec = FakeRecognizer()
     reading, conf = text.read_bubble(img, b, rec)
-    assert reading == "ligne1 ligne2 ligne3" and conf == 0.9
+    assert reading == "ligne1\nligne2\nligne3" and conf == 0.9  # one line per text line
     assert all(line.dtype == np.uint8 and line.ndim == 2 for line in rec.lines)
 
 
