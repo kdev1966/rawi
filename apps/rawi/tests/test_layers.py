@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import cv2
 import numpy as np
 import pytest
 from rawi import layers
@@ -20,40 +21,53 @@ def page_with_bubble(h=400, w=300):
 
 def test_bubble_mask_polygon_and_ellipse():
     _, b = page_with_bubble()
-    m = layers.bubble_mask((400, 300), b, grow=0)
-    assert (
-        m[130, 150] == 1
-        and m[50, 50] == 0
-        and m.sum() == pytest.approx(101 * 61, rel=0.05)
-    )
-    ellipse = layers.bubble_mask((400, 300), {**b, "polygon": None}, grow=0)
+    m = layers.bubble_mask((400, 300), b)
+    assert m[130, 150] == 1 and m[50, 50] == 0
+    assert m.sum() == pytest.approx(101 * 61, rel=0.05)
+    ellipse = layers.bubble_mask((400, 300), {**b, "polygon": None})
     assert (
         ellipse[130, 150] == 1 and ellipse[101, 101] == 0
     )  # corner outside the ellipse
     assert layers.bubble_mask((400, 300), b, grow=5).sum() > m.sum()
 
 
-def test_erased_page_has_no_bubble_left():
+def test_balloon_is_emptied_not_erased():
     img, b = page_with_bubble()
     pl = layers.build_layers(img, [b])
     inside = pl.base[110:150, 110:190]
-    assert inside.min() > 30  # the black text is gone
-    assert np.abs(inside.astype(int) - 255).mean() > 60  # and so is the white balloon
+    assert inside.min() > 200  # the black text is gone…
+    assert (
+        np.abs(inside.astype(int) - 255).max() < 30
+    )  # …and the balloon is still white
     assert np.array_equal(pl.base[300:, :], img[300:, :])  # far away: untouched
 
 
-def test_pasting_back_restores_the_bubble():
+def test_outline_is_kept():
+    img = np.full((300, 300, 3), (40, 120, 200), np.uint8)
+    cv2.ellipse(img, (150, 150), (100, 60), 0, 0, 360, (255, 255, 255), -1)
+    cv2.ellipse(img, (150, 150), (100, 60), 0, 0, 360, (0, 0, 0), 4)
+    cv2.putText(img, "BLA", (110, 160), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 2)
+    # the stored outline is a little larger than the white interior: it includes the stroke
+    poly = cv2.ellipse2Poly((150, 150), (102, 62), 0, 0, 360, 5).tolist()
+    pl = layers.build_layers(
+        img, [{"id": "b", "x": 48, "y": 88, "w": 204, "h": 124, "polygon": poly}]
+    )
+    assert pl.base[150, 50].max() < 60  # black stroke on the left still there
+    assert pl.base[145:155, 115:185].min() > 200  # text gone
+
+
+def test_pasting_back_restores_the_text():
     img, b = page_with_bubble()
     pl = layers.build_layers(img, [b])
     back = pl.with_bubbles({"b1"})
-    assert np.abs(back[110:150, 110:190].astype(int) - img[110:150, 110:190]).max() <= 2
+    assert np.abs(back[110:150, 110:190].astype(int) - img[110:150, 110:190]).max() <= 3
     assert np.array_equal(pl.with_bubbles(set()), pl.base)
 
 
-def test_soft_fill_without_known_pixels_does_not_crash():
-    img = np.full((50, 50, 3), 100, np.uint8)
-    out = layers.soft_fill(img, np.ones((50, 50), np.uint8))
-    assert out.shape == img.shape
+def test_balloon_without_text_gives_no_sprite():
+    img, b = page_with_bubble()
+    img[125:135, 120:180] = 255  # remove the text
+    assert layers.build_layers(img, [b]).sprites == {}
 
 
 @pytest.mark.parametrize(("n", "hold"), [(0, 3.0), (1, 2.2), (3, 7.5), (6, 3.0)])
@@ -102,5 +116,5 @@ def test_bubbles_hidden_then_shown(tmp_path):
     }
     out = list(frames(page, fmt="1:1", fps=10, scale=0.3))
     first, last = out[0], out[-1]
-    # overview frame: the white balloon is not there; final overview: it is back
-    assert (first > 245).all(axis=2).mean() < (last > 245).all(axis=2).mean()
+    # overview: the balloon is empty; final overview: its text is back
+    assert (first < 60).all(axis=2).sum() < (last < 60).all(axis=2).sum()

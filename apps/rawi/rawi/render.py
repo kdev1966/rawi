@@ -1,4 +1,4 @@
-"""Rendu motion comic : caméra case par case, projecteur, bulles qui apparaissent à la lecture.
+"""Rendu motion comic : caméra case par case, projecteur, texte des bulles qui apparaît à la lecture.
 Dépendances : numpy, OpenCV, FFmpeg (binaire)."""
 
 import shutil
@@ -54,7 +54,7 @@ def _matrix(rect, W, H, zoom=1.0, margin=0.92):
     return np.float32([[s, 0, W / 2 - s * cx], [0, s, H / 2 - s * cy]]), s
 
 
-POP = 0.45  # s, duration of a bubble's appearance
+POP = 0.45  # s, duration of a bubble text's appearance
 FIRST_BUBBLE = 0.25  # s into the panel before the first bubble appears
 BUBBLE_GAP = 0.9  # s between bubbles, shortened when the panel is short
 READ_TAIL = 1.2  # s left after the last bubble appears
@@ -67,8 +67,8 @@ def _ease_out_back(t):
 
 
 def _draw_popping(frame, sprite, M, t):
-    """Draw a bubble appearing: scale 0.85 -> 1.0 with a slight overshoot, fading in."""
-    k = 0.85 + 0.15 * _ease_out_back(t)
+    """Draw a bubble's text appearing: fading in, growing 0.96 -> 1.0 with a slight overshoot."""
+    k = 0.96 + 0.04 * _ease_out_back(t)
     fade = min(t / 0.3, 1.0)
     h, w = sprite.alpha.shape
     s = M[0, 0] * k
@@ -102,7 +102,7 @@ def bubble_schedule(n, hold):
 def frames(page, fmt="9:16", fps=30, scale=1.0):
     """Yield the frames of one page: overview, panel by panel, final overview.
 
-    The page is shown without its bubbles; each bubble appears in reading order while the
+    Balloons are shown empty; the text of each one appears in reading order while the
     camera holds on its panel, then stays visible.
     """
     img = cv2.imread(page["image"])

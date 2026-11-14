@@ -13,7 +13,7 @@ Aucune API payante, aucun abonnement : tout tourne en local, même sur un **MacB
 2. **Rendu vidéo** :
    - plan d'ensemble de la planche, puis caméra qui voyage de case en case (mouvements adoucis) ;
    - léger zoom avant (effet Ken Burns) et « projecteur » qui assombrit les autres cases ;
-   - page montrée sans ses bulles ; chaque bulle apparaît à sa lecture (rebond, fondu) puis reste visible ;
+   - bulles montrées vides ; le texte de chacune apparaît à sa lecture (fondu) puis reste visible ;
    - fond flouté, formats 9:16, 16:9 ou 1:1, musique de fond optionnelle.
 3. **Projet modifiable** : tout est enregistré dans `projet.json` (cases, ordre, durées). On corrige à la main, on relance le rendu.
 
