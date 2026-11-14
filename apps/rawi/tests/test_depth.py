@@ -109,3 +109,81 @@ def test_frames_with_depth_keep_their_count_and_differ(tmp_path):
     duration, _ = bubble_timeline(page, fps=10)
     assert len(flat) == len(deep) == round(duration * 10)
     assert any(not np.array_equal(a, b) for a, b in zip(flat, deep, strict=True))
+
+
+# --- real layers (step 2) -------------------------------------------------------------
+
+
+class FakeInpainter:
+    """Fills the hole with mid grey; counts its calls."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def __call__(self, image, mask):
+        self.calls += 1
+        out = image.copy()
+        out[mask > 0] = 128
+        return out
+
+
+def test_front_mask_uses_otsu_and_guards_extremes():
+    d = np.zeros((100, 100), np.float32)
+    d[30:70, 30:70] = 1.0  # a near square
+    still = np.zeros((100, 100), np.uint8)
+    front = depth.front_mask(d, still)
+    assert front is not None and front[50, 50] == 1 and front[5, 5] == 0
+    still[40:60, 40:60] = 1  # a balloon there: never in front
+    assert depth.front_mask(d, still)[50, 50] == 0
+    assert (
+        depth.front_mask(
+            np.zeros((100, 100), np.float32), np.zeros((100, 100), np.uint8)
+        )
+        is None
+    )
+
+
+def square_depth_page(tmp_path):
+    page, img = textured_page(tmp_path)
+
+    class SquareDepth:
+        def __call__(self, image):
+            h, w = image.shape[:2]
+            d = np.zeros((h, w), np.float32)
+            d[h // 4 : 3 * h // 4, w // 4 : 3 * w // 4] = 1.0
+            return d
+
+    depth.compute_depths(page, SquareDepth(), str(tmp_path / "calques"))
+    return page, img
+
+
+def test_compute_layers_writes_and_caches(tmp_path):
+    page, _ = square_depth_page(tmp_path)
+    inp = FakeInpainter()
+    assert depth.compute_layers(page, inp, str(tmp_path / "calques")) == 1
+    panel = page["panels"][0]
+    scenery, alpha = depth.load_layers(panel)
+    assert scenery.shape[:2] == alpha.shape == (panel["h"], panel["w"])
+    assert alpha[panel["h"] // 2, panel["w"] // 2] > 0.9 and alpha[5, 5] < 0.1
+    assert depth.compute_layers(page, inp, str(tmp_path / "calques")) == 0  # cached
+    assert inp.calls == 1
+
+
+def test_apply_layers_moves_the_foreground_more_than_the_scenery(tmp_path):
+    page, img = square_depth_page(tmp_path)
+    depth.compute_layers(page, FakeInpainter(), str(tmp_path / "calques"))
+    panel = page["panels"][0]
+    layers = depth.load_layers(panel)
+    assert np.array_equal(depth.apply_layers(img, panel, layers, 0.0), img)
+    moved = depth.apply_layers(img, panel, layers, 1.0)
+    assert not np.array_equal(moved, img)
+    assert np.array_equal(moved[:20], img[:20])  # outside the panel: untouched
+
+
+def test_layers_take_over_from_the_depth_warp_in_frames(tmp_path):
+    page, _ = square_depth_page(tmp_path)
+    warp = list(frames(page, fmt="1:1", fps=10, scale=0.3))
+    depth.compute_layers(page, FakeInpainter(), str(tmp_path / "calques"))
+    layered = list(frames(page, fmt="1:1", fps=10, scale=0.3))
+    assert len(warp) == len(layered)
+    assert any(not np.array_equal(a, b) for a, b in zip(warp, layered, strict=True))

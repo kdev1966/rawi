@@ -28,14 +28,26 @@ def _peak_rss_mb() -> float | None:
     )  # bytes on macOS, KiB on Linux
 
 
-def _dummy_input(m: Manifest, shapes: list) -> np.ndarray:
-    size = int(m.io.get("input", {}).get("size", 224))
-    shape = shapes[0] if shapes else [1, 3, size, size]
+def _dummy_tensor(shape: list, onnx_type: str, size: int) -> np.ndarray:
     dims = [
         d if isinstance(d, int) and d > 0 else (1 if i == 0 else 3 if i == 1 else size)
         for i, d in enumerate(shape)
     ]
-    return np.random.default_rng(0).standard_normal(dims).astype(np.float32)
+    rng = np.random.default_rng(0)
+    if "uint8" in onnx_type:
+        return rng.integers(0, 256, dims, dtype=np.uint8)
+    return rng.standard_normal(dims).astype(np.float32)
+
+
+def _dummy_inputs(m: Manifest, specs: list) -> tuple[np.ndarray | dict, list[int]]:
+    """Random input(s) for every model input, and the shape of the first one."""
+    size = int(m.io.get("input", {}).get("size", 224) or 224)
+    if not specs:  # OpenCV DNN: one float NCHW input
+        x = _dummy_tensor([1, 3, size, size], "tensor(float)", size)
+        return x, list(x.shape)
+    feed = {name: _dummy_tensor(shape, typ, size) for name, shape, typ in specs}
+    first = feed[specs[0][0]]
+    return (feed if len(feed) > 1 else first), list(first.shape)
 
 
 def measure(m: Manifest, runs: int = 5, engine: str = "auto") -> dict:
@@ -51,7 +63,7 @@ def measure(m: Manifest, runs: int = 5, engine: str = "auto") -> dict:
         store.model_path(m), "opencv" if m.runtime == "opencv_dnn" else engine
     ).load()
     load_s = time.perf_counter() - started
-    x = _dummy_input(m, model.input_shapes())
+    x, first_shape = _dummy_inputs(m, model.input_specs())
     model.run(x)  # warm-up
     times = []
     for _ in range(runs):
@@ -61,7 +73,7 @@ def measure(m: Manifest, runs: int = 5, engine: str = "auto") -> dict:
     return {
         "id": m.id,
         "engine": model.engine,
-        "input": list(x.shape),
+        "input": first_shape,
         "load_s": round(load_s, 2),
         "infer_ms": round(1000 * float(np.median(times)), 1),
         "peak_ram_mb": _peak_rss_mb(),

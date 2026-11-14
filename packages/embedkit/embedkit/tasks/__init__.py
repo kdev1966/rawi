@@ -7,9 +7,10 @@ import sys
 from .. import EmbedkitError, hardware, licenses, store
 from ..registry import Manifest, Registry
 from .depth import DepthEstimator
+from .inpaint import Inpainter
 from .ocr import TextRecognizer
 
-__all__ = ["DepthEstimator", "TextRecognizer", "resolve_model"]
+__all__ = ["DepthEstimator", "Inpainter", "TextRecognizer", "resolve_model"]
 
 
 def resolve_model(

@@ -266,3 +266,61 @@ def test_text_recognizer_tier0_returns_nothing():
 
     rec = TextRecognizer.load(tier=0, registry=Registry(include_builtin=False))
     assert rec.tier == 0 and rec(np.full((20, 60), 255, np.uint8)) == ("", 0.0)
+
+
+# --- inpainting task ----------------------------------------------------------------
+
+
+def _picture_with_hole():
+    img = np.zeros((120, 160, 3), np.uint8)
+    img[:, :80] = (200, 50, 50)
+    img[:, 80:] = (50, 50, 200)
+    mask = np.zeros((120, 160), np.uint8)
+    mask[40:80, 60:100] = 1
+    img[40:80, 60:100] = (0, 255, 0)  # what must disappear
+    return img, mask
+
+
+def test_inpainter_tier0_fills_only_the_hole():
+    from embedkit.tasks import Inpainter
+
+    img, mask = _picture_with_hole()
+    inp = Inpainter.load(tier=0, registry=Registry(include_builtin=False))
+    out = inp(img, mask)
+    assert inp.tier == 0 and out.shape == img.shape
+    assert out[60, 70, 1] < 200  # the green patch is gone
+    assert np.array_equal(out[mask == 0], img[mask == 0])  # untouched elsewhere
+    assert np.array_equal(inp(img, np.zeros_like(mask)), img)
+
+
+def test_inpainter_rejects_bad_input():
+    from embedkit.tasks import Inpainter
+
+    inp = Inpainter.load(tier=0, registry=Registry(include_builtin=False))
+    with pytest.raises(ValueError):
+        inp(np.zeros((10, 10), np.uint8), np.zeros((10, 10), np.uint8))
+    with pytest.raises(ValueError):
+        inp(np.zeros((10, 10, 3), np.uint8), np.zeros((5, 5), np.uint8))
+
+
+def _real_migan_installed() -> bool:
+    try:
+        m = Registry().get("migan-512")
+    except EmbedkitError:
+        return False
+    return (REAL_CACHE / m.id / m.source.revision[:12] / m.filename).is_file()
+
+
+@pytest.mark.skipif(
+    not _real_migan_installed(),
+    reason="MI-GAN non installé (embedkit models pull migan-512)",
+)
+def test_real_migan_fills_the_hole(monkeypatch):
+    from embedkit.tasks import Inpainter
+
+    monkeypatch.setenv(store.ENV_CACHE, str(REAL_CACHE))
+    img, mask = _picture_with_hole()
+    with Inpainter.load(model="migan-512") as inp:
+        out = inp(img, mask)
+    assert out[60, 70, 1] < 150  # no more bright green
+    assert np.array_equal(out[mask == 0], img[mask == 0])

@@ -8,7 +8,13 @@ import subprocess
 import cv2
 import numpy as np
 
-from .depth import apply_parallax, load_depth, parallax_maps
+from .depth import (
+    apply_layers,
+    apply_parallax,
+    load_depth,
+    load_layers,
+    parallax_maps,
+)
 from .layers import build_layers
 from .pacing import bubble_starts
 from .project import bubble_reading_order
@@ -115,8 +121,13 @@ def frames(page, fmt="9:16", fps=30, scale=1.0):
             b.get("id") or f"b{i}-{p['bubbles'].index(b)}"
             for b in _ordered_bubbles(p["bubbles"], rtl)
         ]
-    parallax = {}  # panel index -> (dx, dy) slide per pixel, when the panel has a depth map
+    layered = {}  # panel index -> (scenery, foreground alpha): real layers (step 2)
+    parallax = {}  # panel index -> (dx, dy) per pixel: depth-guided warp (step 1 fallback)
     for i, p in enumerate(page["panels"]):
+        panel_layers = load_layers(p)
+        if panel_layers is not None:
+            layered[i] = panel_layers
+            continue
         depth = load_depth(p)
         if depth is not None:
             parallax[i] = parallax_maps(p, depth, p["bubbles"], img.shape)
@@ -165,12 +176,11 @@ def frames(page, fmt="9:16", fps=30, scale=1.0):
                     shown.add(bubble_id)
             dim = min(f / (0.35 * fps), 1.0) * 0.6 if p else 0.0
             picture = current()
-            if (
-                index in parallax
-            ):  # planes slide apart and back: 0 at both ends, no jump
-                picture = apply_parallax(
-                    picture, p, *parallax[index], math.sin(math.pi * t)
-                )
+            sway = math.sin(math.pi * t)  # planes slide apart and back: 0 at both ends
+            if index in layered:
+                picture = apply_layers(picture, p, layered[index], sway)
+            elif index in parallax:
+                picture = apply_parallax(picture, p, *parallax[index], sway)
             fr = _compose(picture, bg, M, W, H, p, dim)
             for bubble_id, start in zip(ids, starts, strict=True):
                 if start <= sec < start + POP and bubble_id in layers.sprites:

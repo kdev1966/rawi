@@ -141,6 +141,13 @@ class OnnxModel:
             return []
         return [list(i.shape) for i in self._session.get_inputs()]
 
+    def input_specs(self) -> list[tuple[str, list[int | str | None], str]]:
+        """(name, shape, ONNX type such as "tensor(uint8)") of every input (ONNX Runtime only)."""
+        self.load()
+        if self._session is None:
+            return []
+        return [(i.name, list(i.shape), i.type) for i in self._session.get_inputs()]
+
     # -- lifetime ------------------------------------------------------------------------
 
     def close(self) -> None:

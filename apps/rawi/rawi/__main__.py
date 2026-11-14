@@ -6,7 +6,7 @@ import time
 
 from . import project, subtitles
 from .analyze import analyze, draw_debug
-from .depth import compute_depths
+from .depth import compute_depths, compute_layers
 from .render import FORMATS, can_burn_subtitles, render
 from .sources import InputError, expand_inputs
 from .text import read_page
@@ -54,11 +54,32 @@ def _depth_estimator(enabled):
     return est
 
 
+def _inpainter(enabled):
+    """embedkit's inpainting model (MI-GAN) for real layers, or None (depth warp only)."""
+    if not enabled:
+        return None
+    from embedkit import EmbedkitError
+    from embedkit.tasks import Inpainter
+
+    try:
+        inp = Inpainter.load()
+    except EmbedkitError as exc:
+        print(
+            f"Calques désactivés (déformation par la profondeur seule) : {exc}",
+            file=sys.stderr,
+        )
+        return None
+    if inp.tier == 0:  # Telea smears large areas: keep the depth warp
+        return None
+    return inp
+
+
 def cmd_analyser(a):
     pages = []
     os.makedirs(a.controle, exist_ok=True)
     recognizer = _text_recognizer(a.ocr == "oui")
     estimator = _depth_estimator(a.profondeur == "oui")
+    inpainter = _inpainter(estimator is not None)
     calques = os.path.join(os.path.dirname(os.path.abspath(a.sortie)), "calques")
     for img in expand_inputs(a.images, a.dossier_pages, pages=a.pages, dpi=a.dpi):
         page = analyze(img, rtl=a.rtl, detection=a.detection)
@@ -66,6 +87,8 @@ def cmd_analyser(a):
             read_page(page, recognizer)
         if estimator is not None:
             compute_depths(page, estimator, calques)
+        if inpainter is not None:
+            compute_layers(page, inpainter, calques)
         pages.append(page)
         dbg = os.path.join(
             a.controle, os.path.splitext(os.path.basename(img))[0] + "_controle.jpg"

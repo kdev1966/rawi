@@ -8,6 +8,8 @@ Version history:
   (None when unknown, e.g. migrated projects: the renderer then uses an ellipse in the box).
 - 4 (v0.3): every panel gets ``depth``, the path of its depth map (16-bit PNG, 1 = closest)
   used for parallax, or None (no parallax).
+- 5 (v0.3): every panel gets ``front`` (mask of its foreground, PNG) and ``back`` (the
+  panel with the foreground removed and the scenery rebuilt), or None: layered parallax.
 """
 
 from __future__ import annotations
@@ -17,7 +19,7 @@ import os
 import sys
 from collections.abc import Callable
 
-CURRENT_VERSION = 4
+CURRENT_VERSION = 5
 BUBBLE_ROW_PX = 60  # bubbles whose tops are within the same 60 px band read as one row
 
 
@@ -49,6 +51,8 @@ def upgrade_page(page: dict, page_number: int) -> dict:
     rtl = bool(page.get("rtl", False))
     for c, panel in enumerate(page.get("panels", []), 1):
         panel.setdefault("depth", None)
+        panel.setdefault("front", None)
+        panel.setdefault("back", None)
         ordered = bubble_reading_order(panel.get("bubbles", []), rtl)
         for k, b in enumerate(ordered, 1):
             _upgrade_bubble(b, f"p{page_number:02d}-c{c:02d}-b{k:02d}", k)
@@ -79,10 +83,20 @@ def _v3_to_v4(data: dict) -> dict:
     return data
 
 
+def _v4_to_v5(data: dict) -> dict:
+    for page in data.get("pages", []):
+        for panel in page.get("panels", []):
+            panel.setdefault("front", None)
+            panel.setdefault("back", None)
+    data["version"] = 5
+    return data
+
+
 MIGRATIONS: dict[int, Callable[[dict], dict]] = {
     1: _v1_to_v2,
     2: _v2_to_v3,
     3: _v3_to_v4,
+    4: _v4_to_v5,
 }
 
 

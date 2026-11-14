@@ -14,6 +14,7 @@ Socle d'IA embarquée réutilisable, indépendant des applications qui l'utilise
 | `tasks.DepthEstimator` | profondeur relative (1 = proche) ; niveau 0 : dégradé vertical | ✅ |
 | `bench` | temps et pic de RAM par modèle, chacun dans son processus | ✅ |
 | `tasks.TextRecognizer` | lecture d'une ligne de texte (modèles CTC type PaddleOCR) ; niveau 0 : pas de texte | ✅ |
+| `tasks.Inpainter` | reconstitution d'une zone masquée (pipeline ONNX type MI-GAN) ; niveau 0 : `cv2.inpaint` (Telea) | ✅ |
 
 ## Commandes
 
@@ -63,3 +64,4 @@ with DepthEstimator.load() as est:   # niveau choisi selon la machine, modèle t
 |---|---|---|---|
 | `depth-anything-v2-small` (FP32, 94,5 Mo) | profondeur | Apache 2.0 | 0,57 s de chargement, 536 ms par image 518², 390 Mo de RAM ; ne se charge pas sous OpenCV DNN |
 | `paddleocr-arabic-v5-rec` (7,7 Mo + dictionnaire) | OCR, une ligne | Apache 2.0 | 0,19 s de chargement, 20 ms par ligne, 68 Mo de RAM |
+| `migan-512` (26,8 Mo) | reconstitution | MIT | 0,35 s de chargement, 0,6 à 1,1 s par case, 850 Mo de RAM |
