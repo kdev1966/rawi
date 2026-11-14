@@ -285,3 +285,48 @@ def test_cli_list_pull_verify_audit(server, tmp_path, monkeypatch, capsys):
         main(["--models-path", str(models), "licenses", "audit"]) == 1
     )  # nc-model present
     assert main(["hardware"]) == 0
+
+
+# --- URL sources and companion files --------------------------------------------------
+
+
+def test_url_source_and_extras(server):
+    data = manifest_dict(
+        source={
+            "url": "https://example.org/models/v1/model.onnx",
+            "revision": "release-1.0",
+        },
+        extras=[
+            {
+                "name": "dict",
+                "url": "https://example.org/models/v1/dict.txt",
+                "sha256": SHA,
+            }
+        ],
+    )
+    m = parse_manifest(data)
+    assert m.filename == "model.onnx" and m.extras[0].name == "dict"
+    assert store.model_dir(m).name == "release-1.0"
+    assert store.extra_path(m, "dict").name == "dict.txt"
+    with pytest.raises(EmbedkitError, match="annexe"):
+        store.extra_path(m, "nope")
+
+
+def test_url_must_be_https():
+    with pytest.raises(ManifestError, match="https"):
+        parse_manifest(
+            manifest_dict(source={"url": "http://example.org/m.onnx", "revision": "x"})
+        )
+
+
+def test_pull_downloads_model_and_extras_from_hf(server):
+    m = parse_manifest(
+        manifest_dict(extras=[{"name": "dict", "file": "onnx/dict.txt", "sha256": SHA}])
+    )
+    assert not store.is_installed(m)
+    store.pull(m)
+    assert store.is_installed(m) and store.verify(m)
+    assert store.extra_path(m, "dict").read_bytes() == PAYLOAD
+    assert len(server.requests) == 2  # model + dictionary
+    store.extra_path(m, "dict").write_bytes(b"broken")
+    assert not store.verify(m)

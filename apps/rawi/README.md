@@ -9,6 +9,7 @@ Aucune API payante, aucun abonnement : tout tourne en local, même sur un **MacB
    - détection des cases, y compris en biais, sur papier blanc ou jauni, et quand une bulle chevauche la gouttière (`--detection v01` pour l'ancienne méthode) ;
    - ordre de lecture gauche → droite (ou droite → gauche avec `--rtl`) ;
    - détection des bulles sur toute la page (contour réel) et estimation du temps de lecture ;
+   - lecture du texte des bulles (arabe, français, anglais), enregistré dans `projet.json`, corrigeable à la main ;
    - image de **contrôle** pour vérifier le résultat en un coup d'œil.
 2. **Rendu vidéo** :
    - plan d'ensemble de la planche, puis caméra qui voyage de case en case (mouvements adoucis) ;
@@ -56,6 +57,10 @@ rawi auto pages/*.jpg --rtl
 
 # Ancienne détection des cases (v0.1), si la nouvelle se trompe sur une planche
 rawi auto pages/*.jpg --detection v01
+
+# Sans lecture du texte des bulles (par défaut, le texte est lu ; le modèle OCR, 8 Mo,
+# est téléchargé au premier usage, puis tout fonctionne hors ligne)
+rawi auto pages/*.jpg --ocr non
 
 # Album PDF : toutes les pages, ou une sélection
 rawi auto album.pdf

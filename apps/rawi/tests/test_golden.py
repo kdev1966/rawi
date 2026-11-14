@@ -92,3 +92,51 @@ def test_detection_scores_do_not_regress(name, detection):
     assert t["precision"] >= precision - 0.005, (
         f"précision {t['precision']:.1%} < {precision:.0%}"
     )
+
+
+def _ocr_model_installed() -> bool:
+    from pathlib import Path
+
+    from embedkit import EmbedkitError
+    from embedkit.registry import Registry
+
+    try:
+        m = Registry().get("paddleocr-arabic-v5-rec")
+    except EmbedkitError:
+        return False
+    return (
+        Path.home() / ".cache" / "embedkit" / m.id / m.source.revision / m.filename
+    ).is_file()
+
+
+# measured on 2026-11-14: CER 20.8 %, 67.1 % of the words (detection misses count as wrong)
+TEXT_FLOOR = {"cer_max": 0.21, "words_min": 0.66}
+
+
+@pytest.mark.skipif(
+    not _ocr_model_installed(),
+    reason="modèle OCR arabe non installé (embedkit models pull)",
+)
+def test_balloon_text_does_not_regress(monkeypatch):
+    from pathlib import Path
+
+    from embedkit import store
+    from embedkit.tasks import TextRecognizer
+    from rawi.text import read_page
+
+    monkeypatch.setenv(store.ENV_CACHE, str(Path.home() / ".cache" / "embedkit"))
+    monkeypatch.delenv(store.ENV_OFFLINE, raising=False)
+    rec = TextRecognizer.load(model="paddleocr-arabic-v5-rec")
+
+    def reader(path):
+        page = analyze(path)
+        read_page(page, rec)
+        return page
+
+    res = ev.evaluate_text("qahwati_text", reader)
+    if res is None:
+        pytest.skip("planches Qahwati absentes (privées, hors git)")
+    assert res["cer"] <= TEXT_FLOOR["cer_max"], (
+        f"erreurs par caractère {res['cer']:.1%}"
+    )
+    assert res["words"] >= TEXT_FLOOR["words_min"], f"mots retrouvés {res['words']:.1%}"

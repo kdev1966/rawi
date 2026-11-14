@@ -7,21 +7,48 @@ from . import project
 from .analyze import analyze, draw_debug
 from .render import FORMATS, render
 from .sources import InputError, expand_inputs
+from .text import read_page
+
+
+def _text_recognizer(enabled):
+    """embedkit's OCR, or None (disabled, or no model available: the text stays empty)."""
+    if not enabled:
+        return None
+    from embedkit import EmbedkitError
+    from embedkit.tasks import TextRecognizer
+
+    try:
+        rec = TextRecognizer.load()
+    except EmbedkitError as exc:
+        print(f"Lecture du texte désactivée : {exc}", file=sys.stderr)
+        return None
+    if rec.tier == 0:
+        print(
+            "Lecture du texte désactivée : aucun modèle OCR utilisable.",
+            file=sys.stderr,
+        )
+        return None
+    return rec
 
 
 def cmd_analyser(a):
     pages = []
     os.makedirs(a.controle, exist_ok=True)
+    recognizer = _text_recognizer(a.ocr == "oui")
     for img in expand_inputs(a.images, a.dossier_pages, pages=a.pages, dpi=a.dpi):
         page = analyze(img, rtl=a.rtl, detection=a.detection)
+        if recognizer is not None:
+            read_page(page, recognizer)
         pages.append(page)
         dbg = os.path.join(
             a.controle, os.path.splitext(os.path.basename(img))[0] + "_controle.jpg"
         )
         draw_debug(page, dbg)
         nb = sum(len(p["bubbles"]) for p in page["panels"])
+        lus = sum(1 for p in page["panels"] for b in p["bubbles"] if b.get("text"))
+        texte = f", {lus} textes lus" if recognizer is not None else ""
         print(
-            f"✓ {os.path.basename(img)} : {len(page['panels'])} cases, {nb} bulles  → {dbg}"
+            f"✓ {os.path.basename(img)} : {len(page['panels'])} cases, {nb} bulles{texte}  → {dbg}"
         )
     projet = project.new_project(pages, a.rtl)
     project.save(projet, a.sortie)
@@ -65,6 +92,12 @@ def main(argv=None):
         )
         p.add_argument(
             "--controle", default="controle", help="dossier des images de contrôle"
+        )
+        p.add_argument(
+            "--ocr",
+            default="oui",
+            choices=["oui", "non"],
+            help="lire le texte des bulles (télécharge le modèle OCR au premier usage)",
         )
         p.add_argument(
             "--detection",

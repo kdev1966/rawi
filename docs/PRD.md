@@ -352,6 +352,8 @@ Le texte lu est stocké **par bulle**, avec sa langue et son sens d'écriture, e
 
 **Bulles vivantes (14 novembre 2026)** : format de projet 3 (contour réel de chaque bulle) ; les bulles sont montrées **vides** (leur texte repeint avec la couleur de fond de la bulle, niveau 0, principe n° 1) et le texte de chacune apparaît à sa lecture, en fondu, puis reste visible. Effacer la bulle entière et reconstituer le dessin dessous (cv2.inpaint, puis flou) a été essayé puis écarté par le porteur : les taches floues donnaient une image abîmée. Détection des bulles refaite sur toute la page (`rawi/bubbles.py`) : sur Qahwati, 89 % des bulles trouvées et 91 % de détections justes (avant : 85 % / 68 %), mesuré contre une vérité de 51 bulles (`qahwati_bubbles_expected.json`, validée par le porteur). Sur Goldorak, environ la moitié des bulles seulement (estimation visuelle : bulles ouvertes, collées au bord des cases) ; à mesurer.
 
+**Lecture du texte (14 novembre 2026, ADR 0006)** : PaddleOCR arabe v5 en ONNX, lignes trouvées sans modèle ; texte, segments arabe/latin, langues et confiance enregistrés par bulle. Sur la chaîne complète Qahwati : 21 % d'erreurs par caractère, 67 % des mots retrouvés (transcription de référence de 46 bulles validée par le porteur ; les bulles non détectées comptent comme fausses). Langues réelles de Qahwati : arabe, français **et anglais**.
+
 Pistes à évaluer, du classique au modèle : cadres de cases détectés comme polygones (contours, segments de droite) plutôt que gouttières horizontales ou verticales ; cases non rectangulaires ; détecteur de cases léger en niveau 1 ; correction manuelle facile en repli. Le format de projet doit accepter des cases polygonales.
 
 
@@ -360,7 +362,7 @@ Pistes à évaluer, du classique au modèle : cadres de cases détectés comme p
 | Masque précis des bulles | contour réel (déjà calculé) | détecteur de bulles/texte pour BD (RT-DETR quantifié ; licence à vérifier) |
 | Effacer les bulles du fond | `cv2.inpaint` (Telea) ; remplissage blanc à l'intérieur | MI-GAN ONNX (*licence des poids à confirmer*) |
 | Lecture du texte (OCR) | saisie manuelle dans le projet | PaddleOCR ONNX (Apache 2.0), modèles arabe et latin, choix par ligne ; alternative Tesseract `ara+fra` (Apache 2.0) — à départager par bench |
-| Sens de lecture | `--rtl` / `--ltr` | déduit de l'écriture dominante (arabe → droite à gauche), modifiable |
+| Sens de lecture | `--rtl` | ~~déduit de l'écriture dominante~~ : abandonné, Qahwati est en arabe mais se lit de gauche à droite (ADR 0006) |
 
 Comportements attendus :
 

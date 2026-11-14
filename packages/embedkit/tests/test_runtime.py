@@ -232,3 +232,37 @@ def test_real_depth_anything(monkeypatch):
     with DepthEstimator.load(model="depth-anything-v2-small") as est:
         d = est(img)
     assert d.shape == (200, 150) and np.isfinite(d).all()
+
+
+# --- OCR task -----------------------------------------------------------------------
+
+
+def test_reverse_arabic_runs_keeps_latin_forward():
+    from embedkit.tasks.ocr import reverse_arabic_runs
+
+    # model output is in visual order: Arabic letters come reversed, Latin runs do not
+    assert reverse_arabic_runs("ريمب") == "بمير"
+    assert reverse_arabic_runs("ابCash") == "Cashبا"
+    assert reverse_arabic_runs("Hello") == "Hello"
+    assert (
+        reverse_arabic_runs("Are you profitable?") == "Are you profitable?"
+    )  # LTR line untouched
+
+
+def test_ctc_decode_merges_repeats_and_drops_blanks():
+    from embedkit.tasks.ocr import ctc_decode
+
+    charset = ["<blank>", "a", "b", " "]
+    path = [1, 1, 0, 1, 2, 2, 0, 0, 3]  # a a _ a b b _ _ space -> "aab "
+    probs = np.full((len(path), 4), 0.01, np.float32)
+    for t, i in enumerate(path):
+        probs[t, i] = 0.97
+    text, conf = ctc_decode(probs, charset)
+    assert text == "aab " and conf > 0.9
+
+
+def test_text_recognizer_tier0_returns_nothing():
+    from embedkit.tasks import TextRecognizer
+
+    rec = TextRecognizer.load(tier=0, registry=Registry(include_builtin=False))
+    assert rec.tier == 0 and rec(np.full((20, 60), 255, np.uint8)) == ("", 0.0)

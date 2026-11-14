@@ -1,9 +1,11 @@
 """Measure panel detection against hand-written ground truth (development tool).
 
-    python -m rawi.evaluate qahwati goldorak qahwati_bubbles [--controle dossier]
+    python -m rawi.evaluate qahwati goldorak qahwati_bubbles qahwati_text [--controle dossier]
 
-Ground truth lives in tests/golden/<set>_expected.json; page images are local fixtures
-(tests/fixtures/<set>/, or the "fixtures" folder named in the truth file), never in git.
+Ground truth lives in tests/golden/<set>_expected.json, or next to the private pages in
+tests/fixtures/<folder>/<set>_expected.json when it reproduces their content (the text of
+the balloons). Page images are local fixtures (tests/fixtures/<set>/, or the "fixtures"
+folder named in the truth file), never in git.
 A truth file measures panels by default, or bubbles with "what": "bubbles". Matching is
 greedy on IoU >= MIN_IOU (or the file's "min_iou"); optional
 truth panels (unframed decorations, titles) are neither required nor counted as extra.
@@ -15,7 +17,10 @@ import argparse
 import contextlib
 import io
 import json
+import re
 import sys
+import unicodedata
+from collections import Counter
 from dataclasses import dataclass, field
 from itertools import pairwise
 from pathlib import Path
@@ -28,6 +33,15 @@ from .sources import pdf_to_images
 TESTS = Path(__file__).resolve().parents[1] / "tests"
 MIN_IOU = 0.6
 Box = list[int]
+
+
+def truth_path(name: str) -> Path | None:
+    """The truth file of a set: public (tests/golden) or private (next to the pages)."""
+    public = TESTS / "golden" / f"{name}_expected.json"
+    if public.is_file():
+        return public
+    private = sorted((TESTS / "fixtures").glob(f"*/{name}_expected.json"))
+    return private[0] if private else None
 
 
 def iou(a: Box, b: Box) -> float:
@@ -213,6 +227,73 @@ def totals(scores: list[PageScore]) -> dict[str, float]:
     }
 
 
+_TASHKEEL = re.compile("[\u064b-\u065f\u0670\u0640]")
+
+
+def normalise_text(s: str) -> str:
+    """Compare readings, not typography: no short vowels, punctuation or alef variants."""
+    s = _TASHKEEL.sub("", unicodedata.normalize("NFKC", s))
+    s = re.sub("[أإآٱ]", "ا", s).replace("ى", "ي").replace("ة", "ه")
+    return " ".join(re.sub(r"[^\w\s%]", " ", s).lower().split())
+
+
+def _levenshtein(a: str, b: str) -> int:
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+        prev = cur
+    return prev[-1]
+
+
+def text_scores(reference: str, reading: str) -> tuple[float, float]:
+    """(character error rate, fraction of the reference words found) after normalisation."""
+    r, h = normalise_text(reference), normalise_text(reading)
+    cer = min(_levenshtein(r, h) / max(len(r), 1), 1.0)
+    rw, hw = Counter(r.split()), Counter(h.split())
+    return cer, sum((rw & hw).values()) / max(sum(rw.values()), 1)
+
+
+def evaluate_text(name: str, page_reader) -> dict | None:
+    """Read every page with ``page_reader(path) -> page`` and compare balloon texts.
+
+    A reference balloon matched to no detected balloon counts as fully wrong (CER 1).
+    Returns None when the (private) truth file or the pages are absent.
+    """
+    path = truth_path(name)
+    if path is None:
+        return None
+    data = json.loads(path.read_text(encoding="utf-8"))
+    folder = TESTS / "fixtures" / data.get("fixtures", name)
+    if not folder.is_dir():
+        return None
+    cers, words, rows = [], [], []
+    for page_name, refs in data["pages"].items():
+        page = page_reader(str(folder / page_name))
+        found = [b for p in page["panels"] for b in p["bubbles"]]
+        for ref in refs:
+            best = max(
+                found,
+                key=lambda b: iou([b["x"], b["y"], b["w"], b["h"]], ref["box"]),
+                default=None,
+            )
+            matched = (
+                best is not None
+                and iou([best["x"], best["y"], best["w"], best["h"]], ref["box"]) >= 0.5
+            )
+            reading = best.get("text", "") if matched and best is not None else ""
+            cer, w = text_scores(ref["text"], reading) if matched else (1.0, 0.0)
+            cers.append(cer)
+            words.append(w)
+            rows.append((page_name, ref["text"], reading, cer))
+    return {
+        "cer": sum(cers) / len(cers),
+        "words": sum(words) / len(words),
+        "rows": rows,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         prog="python -m rawi.evaluate", description="Mesurer la détection des cases."
@@ -225,6 +306,27 @@ def main(argv: list[str] | None = None) -> int:
     )
     a = ap.parse_args(argv)
     for name in a.sets:
+        if name.endswith("_text"):
+            from embedkit.tasks import TextRecognizer
+
+            from .analyze import analyze
+            from .text import read_page
+
+            rec = TextRecognizer.load()
+
+            def reader(path, rec=rec):
+                page = analyze(path)
+                read_page(page, rec)
+                return page
+
+            res = evaluate_text(name, reader)
+            if res is None:
+                print(f"{name} : planches absentes (fixtures locales), ignoré.")
+                continue
+            print(
+                f"\n== {name} ==  erreurs par caractère {res['cer']:.1%}, mots retrouvés {res['words']:.1%}"
+            )
+            continue
         scores = evaluate(name, a.controle)
         if scores is None:
             print(f"{name} : planches absentes (fixtures locales), ignoré.")

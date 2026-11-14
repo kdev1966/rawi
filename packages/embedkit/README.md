@@ -13,6 +13,7 @@ Socle d'IA embarquée réutilisable, indépendant des applications qui l'utilise
 | `runtimes/onnx` | ONNX Runtime, repli OpenCV DNN (ADR 0003), chargement paresseux, `close()` / `with` | ✅ |
 | `tasks.DepthEstimator` | profondeur relative (1 = proche) ; niveau 0 : dégradé vertical | ✅ |
 | `bench` | temps et pic de RAM par modèle, chacun dans son processus | ✅ |
+| `tasks.TextRecognizer` | lecture d'une ligne de texte (modèles CTC type PaddleOCR) ; niveau 0 : pas de texte | ✅ |
 
 ## Commandes
 
@@ -34,6 +35,8 @@ Un fichier YAML par modèle (format : PRD §6.2). Ordre de lecture, le dernier l
 3. les dossiers passés par l'application (`Registry(extra_dirs=…)` ou `--models-path`).
 
 Une application déclare ainsi ses propres modèles sans qu'embedkit la connaisse.
+
+Une source peut être un dépôt Hugging Face à un commit épinglé (`repo`, `file`, `revision`) ou une adresse fixe (`url`, `revision` = nom de la publication). Les fichiers annexes (`extras`, par exemple le dictionnaire d'un modèle OCR) ont chacun leur sha256 ; `store.extra_path(m, "dict")` donne leur chemin.
 
 ## Variables d'environnement
 
@@ -59,3 +62,4 @@ with DepthEstimator.load() as est:   # niveau choisi selon la machine, modèle t
 | Modèle | Tâche | Licence | Mesuré sur la machine de référence |
 |---|---|---|---|
 | `depth-anything-v2-small` (FP32, 94,5 Mo) | profondeur | Apache 2.0 | 0,57 s de chargement, 536 ms par image 518², 390 Mo de RAM ; ne se charge pas sous OpenCV DNN |
+| `paddleocr-arabic-v5-rec` (7,7 Mo + dictionnaire) | OCR, une ligne | Apache 2.0 | 0,19 s de chargement, 20 ms par ligne, 68 Mo de RAM |

@@ -27,9 +27,28 @@ class ManifestError(EmbedkitError):
 
 @dataclass(frozen=True)
 class Source:
-    repo: str  # Hugging Face "org/name"
-    file: str  # path inside the repository
-    revision: str  # pinned commit sha (40 hex)
+    """Where a model file comes from: a Hugging Face repo at a pinned commit, or a fixed URL.
+
+    With ``url`` (e.g. a GitHub release asset), ``revision`` is a free label naming the
+    release; the sha256 in the manifest is what guarantees the content.
+    """
+
+    repo: str  # Hugging Face "org/name" ("" when url is used)
+    file: str  # path inside the repository, or the file name for a URL
+    revision: (
+        str  # pinned commit sha (40 hex) for Hugging Face; a release label for a URL
+    )
+    url: str = ""
+
+
+@dataclass(frozen=True)
+class Extra:
+    """A companion file of a model (e.g. the character dictionary of an OCR model)."""
+
+    name: str  # role, e.g. "dict"
+    file: str  # path in the same Hugging Face repo, or file name for a URL
+    sha256: str
+    url: str = ""
 
 
 @dataclass(frozen=True)
@@ -51,6 +70,7 @@ class Manifest:
     license: License
     io: dict = field(default_factory=dict)
     notes: str = ""
+    extras: tuple[Extra, ...] = ()
     path: Path | None = None  # file the manifest was read from
 
     @property
@@ -98,15 +118,43 @@ def parse_manifest(data: dict, where: str = "manifeste") -> Manifest:
     if tier not in (0, 1, 2):
         raise ManifestError(f"{where} : tier doit valoir 0, 1 ou 2")
     src = _require(data, "source", where)
-    source = Source(
-        repo=str(_require(src, "repo", where)),
-        file=str(_require(src, "file", where)),
-        revision=str(_require(src, "revision", where)),
-    )
-    if not _REV_RE.match(source.revision):
-        raise ManifestError(
-            f"{where} : source.revision doit être un commit épinglé (40 caractères hexadécimaux)"
+    if src.get("url"):
+        url = str(src["url"])
+        if not url.startswith("https://"):
+            raise ManifestError(f"{where} : source.url doit commencer par https://")
+        source = Source(
+            repo="",
+            file=str(src.get("file") or url.rsplit("/", 1)[-1]),
+            revision=str(_require(src, "revision", where)),
+            url=url,
         )
+    else:
+        source = Source(
+            repo=str(_require(src, "repo", where)),
+            file=str(_require(src, "file", where)),
+            revision=str(_require(src, "revision", where)),
+        )
+        if not _REV_RE.match(source.revision):
+            raise ManifestError(
+                f"{where} : source.revision doit être un commit épinglé (40 caractères hexadécimaux)"
+            )
+    extras = []
+    for item in data.get("extras") or []:
+        extra = Extra(
+            name=str(_require(item, "name", where)),
+            file=str(item.get("file") or str(item.get("url", "")).rsplit("/", 1)[-1]),
+            sha256=str(_require(item, "sha256", where)).lower(),
+            url=str(item.get("url", "")),
+        )
+        if not _SHA_RE.match(extra.sha256):
+            raise ManifestError(
+                f"{where} : sha256 invalide pour le fichier annexe « {extra.name} »"
+            )
+        if not extra.file or (not extra.url and source.url):
+            raise ManifestError(
+                f"{where} : fichier annexe « {extra.name} » sans adresse"
+            )
+        extras.append(extra)
     sha256 = str(_require(data, "sha256", where)).lower()
     if not _SHA_RE.match(sha256):
         raise ManifestError(f"{where} : sha256 invalide (64 caractères hexadécimaux)")
@@ -127,6 +175,7 @@ def parse_manifest(data: dict, where: str = "manifeste") -> Manifest:
         license=license_,
         io=dict(data.get("io") or {}),
         notes=str(data.get("notes", "")),
+        extras=tuple(extras),
     )
 
 
