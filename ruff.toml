@@ -1,4 +1,5 @@
 target-version = "py311"
+extend-exclude = ["tools/detection_proto"]  # exploration scripts, not shipped
 
 [lint]
 select = ["E", "F", "W", "I", "UP", "B"]
