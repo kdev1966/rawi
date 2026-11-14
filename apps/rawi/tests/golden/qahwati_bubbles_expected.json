@@ -1,5 +1,5 @@
 {
-  "about": "Ground truth for speech balloons on the 8 Qahwati pages (images are private, not in git). Boxes [x, y, w, h] in page pixels. Numbered speech balloons are required; captions and title banners are optional (neither required nor counted as extra). First draft by Claude on 2026-11-14, to be validated by the project owner.",
+  "about": "Ground truth for speech balloons on the 8 Qahwati pages (images are private, not in git). Boxes [x, y, w, h] in page pixels. Numbered speech balloons are required; captions and title banners are optional (neither required nor counted as extra). Drafted by Claude and validated as is by the project owner on 2026-11-14.",
   "rtl": false,
   "fixtures": "qahwati",
   "what": "bubbles",
