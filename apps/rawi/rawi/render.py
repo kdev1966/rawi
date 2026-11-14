@@ -8,6 +8,7 @@ import subprocess
 import cv2
 import numpy as np
 
+from .depth import apply_parallax, load_depth, parallax_maps
 from .layers import build_layers
 from .pacing import bubble_starts
 from .project import bubble_reading_order
@@ -114,6 +115,11 @@ def frames(page, fmt="9:16", fps=30, scale=1.0):
             b.get("id") or f"b{i}-{p['bubbles'].index(b)}"
             for b in _ordered_bubbles(p["bubbles"], rtl)
         ]
+    parallax = {}  # panel index -> (dx, dy) slide per pixel, when the panel has a depth map
+    for i, p in enumerate(page["panels"]):
+        depth = load_depth(p)
+        if depth is not None:
+            parallax[i] = parallax_maps(p, depth, p["bubbles"], img.shape)
     shown: set[str] = set()
     cached = {"key": None, "img": None}
 
@@ -158,7 +164,14 @@ def frames(page, fmt="9:16", fps=30, scale=1.0):
                 if sec >= start + POP:
                     shown.add(bubble_id)
             dim = min(f / (0.35 * fps), 1.0) * 0.6 if p else 0.0
-            fr = _compose(current(), bg, M, W, H, p, dim)
+            picture = current()
+            if (
+                index in parallax
+            ):  # planes slide apart and back: 0 at both ends, no jump
+                picture = apply_parallax(
+                    picture, p, *parallax[index], math.sin(math.pi * t)
+                )
+            fr = _compose(picture, bg, M, W, H, p, dim)
             for bubble_id, start in zip(ids, starts, strict=True):
                 if start <= sec < start + POP and bubble_id in layers.sprites:
                     _draw_popping(fr, layers.sprites[bubble_id], M, (sec - start) / POP)

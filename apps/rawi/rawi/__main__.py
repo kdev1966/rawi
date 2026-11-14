@@ -6,6 +6,7 @@ import time
 
 from . import project, subtitles
 from .analyze import analyze, draw_debug
+from .depth import compute_depths
 from .render import FORMATS, can_burn_subtitles, render
 from .sources import InputError, expand_inputs
 from .text import read_page
@@ -32,14 +33,39 @@ def _text_recognizer(enabled):
     return rec
 
 
+def _depth_estimator(enabled):
+    """embedkit's depth model, or None (disabled or unavailable: no parallax)."""
+    if not enabled:
+        return None
+    from embedkit import EmbedkitError
+    from embedkit.tasks import DepthEstimator
+
+    try:
+        est = DepthEstimator.load()
+    except EmbedkitError as exc:
+        print(f"Profondeur désactivée : {exc}", file=sys.stderr)
+        return None
+    if est.tier == 0:
+        print(
+            "Profondeur désactivée : aucun modèle de profondeur utilisable.",
+            file=sys.stderr,
+        )
+        return None
+    return est
+
+
 def cmd_analyser(a):
     pages = []
     os.makedirs(a.controle, exist_ok=True)
     recognizer = _text_recognizer(a.ocr == "oui")
+    estimator = _depth_estimator(a.profondeur == "oui")
+    calques = os.path.join(os.path.dirname(os.path.abspath(a.sortie)), "calques")
     for img in expand_inputs(a.images, a.dossier_pages, pages=a.pages, dpi=a.dpi):
         page = analyze(img, rtl=a.rtl, detection=a.detection)
         if recognizer is not None:
             read_page(page, recognizer)
+        if estimator is not None:
+            compute_depths(page, estimator, calques)
         pages.append(page)
         dbg = os.path.join(
             a.controle, os.path.splitext(os.path.basename(img))[0] + "_controle.jpg"
@@ -140,6 +166,12 @@ def main(argv=None):
         )
         p.add_argument(
             "--controle", default="controle", help="dossier des images de contrôle"
+        )
+        p.add_argument(
+            "--profondeur",
+            default="oui",
+            choices=["oui", "non"],
+            help="profondeur des cases pour la parallaxe (télécharge le modèle au premier usage)",
         )
         p.add_argument(
             "--ocr",

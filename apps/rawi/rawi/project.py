@@ -6,6 +6,8 @@ Version history:
   for OCR and translation (PRD §6.4). The renderer follows ``order``.
 - 3 (v0.2): every bubble gets ``polygon``, its real outline [[x, y], …] in page pixels
   (None when unknown, e.g. migrated projects: the renderer then uses an ellipse in the box).
+- 4 (v0.3): every panel gets ``depth``, the path of its depth map (16-bit PNG, 1 = closest)
+  used for parallax, or None (no parallax).
 """
 
 from __future__ import annotations
@@ -15,7 +17,7 @@ import os
 import sys
 from collections.abc import Callable
 
-CURRENT_VERSION = 3
+CURRENT_VERSION = 4
 BUBBLE_ROW_PX = 60  # bubbles whose tops are within the same 60 px band read as one row
 
 
@@ -43,9 +45,10 @@ def _upgrade_bubble(b: dict, bubble_id: str, order: int) -> None:
 
 
 def upgrade_page(page: dict, page_number: int) -> dict:
-    """Give every bubble of a page the version-2 fields (in place, idempotent)."""
+    """Give a page the current fields: bubble ids, order, text, outline; panel depth."""
     rtl = bool(page.get("rtl", False))
     for c, panel in enumerate(page.get("panels", []), 1):
+        panel.setdefault("depth", None)
         ordered = bubble_reading_order(panel.get("bubbles", []), rtl)
         for k, b in enumerate(ordered, 1):
             _upgrade_bubble(b, f"p{page_number:02d}-c{c:02d}-b{k:02d}", k)
@@ -68,7 +71,19 @@ def _v2_to_v3(data: dict) -> dict:
     return data
 
 
-MIGRATIONS: dict[int, Callable[[dict], dict]] = {1: _v1_to_v2, 2: _v2_to_v3}
+def _v3_to_v4(data: dict) -> dict:
+    for page in data.get("pages", []):
+        for panel in page.get("panels", []):
+            panel.setdefault("depth", None)
+    data["version"] = 4
+    return data
+
+
+MIGRATIONS: dict[int, Callable[[dict], dict]] = {
+    1: _v1_to_v2,
+    2: _v2_to_v3,
+    3: _v3_to_v4,
+}
 
 
 def migrate(data: dict) -> dict:

@@ -68,7 +68,10 @@ V1 = {
 
 def test_migrate_v1_to_v2():
     data = project.migrate(copy.deepcopy(V1))
-    assert data["version"] == project.CURRENT_VERSION == 3
+    assert data["version"] == project.CURRENT_VERSION == 4
+    assert all(
+        c["depth"] is None for c in data["pages"][0]["panels"]
+    )  # v4: no depth yet
     bubbles = data["pages"][0]["panels"][0]["bubbles"]
     # right-to-left page: in the top row the right bubble comes first
     by_order = sorted(bubbles, key=lambda b: b["order"])
@@ -125,7 +128,7 @@ def test_load_save_round_trip(tmp_path, capsys):
     path = tmp_path / "projet.json"
     path.write_text(json.dumps(V1), encoding="utf-8")
     data = project.load(path)
-    assert data["version"] == 3
+    assert data["version"] == 4
     assert "converti" in capsys.readouterr().err
     project.save(data, path)
     assert project.load(path) == data
@@ -150,7 +153,7 @@ def test_cli_writes_v2_and_reports_bad_project(
     cv2.imwrite("page.png", comic_page(600, 800))
     main(["analyser", "page.png"])
     data = json.loads((tmp_path / "projet.json").read_text(encoding="utf-8"))
-    assert data["version"] == 3
+    assert data["version"] == 4
     (tmp_path / "future.json").write_text(
         json.dumps({"version": 9, "pages": []}), encoding="utf-8"
     )

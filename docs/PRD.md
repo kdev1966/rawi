@@ -383,6 +383,8 @@ Comportements attendus :
 
 ### v0.3 — Calques, parallaxe 2.5D, éditeur
 
+**Avancement (14 novembre 2026)** — ordre validé par le porteur : 1) parallaxe par la profondeur, 2) reconstitution du décor (MI-GAN), 3) détourage (MobileSAM, clics), 4) éditeur local (serveur Python intégré, sans dépendance). Étape 1 faite : carte de profondeur par case (Depth Anything V2 Small, mise en cache par empreinte dans `calques/`), format de projet 4 ; pendant le plan, chaque pixel glisse selon sa profondeur (déformation douce, 6 % de la largeur au plus, aller-retour sans à-coup), bulles immobiles. `--profondeur non` pour s'en passer.
+
 | Tâche | Niveau 0 | Niveau 1 (par défaut) | Niveau 2 |
 |---|---|---|---|
 | Détourage des personnages | tracé manuel (polygone) | MobileSAM ONNX, prompt = boîte ou clics ; repli U²-Net-p | BiRefNet |
