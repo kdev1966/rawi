@@ -1,5 +1,5 @@
 {
-  "about": "Ground truth for Goldorak, TELEjunior no. 16 (1979), 9 pages, PDF kept locally (rights not free). Page images are the PDF pages rendered by rawi (2148x3000 px). Boxes [x, y, w, h] approximate the panel, including slanted or unframed ones. 'optional' panels (unframed decorations, title) are neither required nor counted as extra. First draft by Claude on 2026-11-14, to be validated by the project owner.",
+  "about": "Ground truth for Goldorak, TELEjunior no. 16 (1979), 9 pages, PDF kept locally (rights not free). Page images are the PDF pages rendered by rawi (2148x3000 px). Boxes [x, y, w, h] approximate the panel, including slanted or unframed ones. 'optional' panels (unframed decorations, title) are neither required nor counted as extra. Drafted by Claude and validated as is by the project owner on 2026-11-14.",
   "source": "telejunior16.pdf",
   "rtl": false,
   "pages": {
