@@ -15,3 +15,4 @@ projet.json
 
 # Private test pages (not redistributable): kept locally only
 apps/*/tests/fixtures/qahwati/
+apps/*/tests/fixtures/goldorak/
