@@ -158,7 +158,17 @@ def _bubbles(img, white, gutter, panel):
         dark = int(((gray < 100) & (fill > 0)).sum())
         ratio = dark / max(area, 1)
         if solidity > 0.75 and 0.03 < ratio < 0.45:
-            res.append({"x": x + bx, "y": y + by, "w": bw, "h": bh, "text_px": dark})
+            outline = cv2.approxPolyDP(c, 1.5, True).reshape(-1, 2) + (x, y)
+            res.append(
+                {
+                    "x": x + bx,
+                    "y": y + by,
+                    "w": bw,
+                    "h": bh,
+                    "text_px": dark,
+                    "polygon": outline.astype(int).tolist(),
+                }
+            )
     return res
 
 
@@ -210,13 +220,17 @@ def draw_debug(project, out_path):
             img, (p["x"], p["y"]), (p["x"] + p["w"], p["y"] + p["h"]), (0, 0, 255), 4
         )
         for b in p["bubbles"]:
-            cv2.rectangle(
-                img,
-                (b["x"], b["y"]),
-                (b["x"] + b["w"], b["y"] + b["h"]),
-                (255, 140, 0),
-                3,
-            )
+            if b.get("polygon"):
+                pts = np.array(b["polygon"], np.int32)
+                cv2.polylines(img, [pts], True, (255, 140, 0), 3)
+            else:
+                cv2.rectangle(
+                    img,
+                    (b["x"], b["y"]),
+                    (b["x"] + b["w"], b["y"] + b["h"]),
+                    (255, 140, 0),
+                    3,
+                )
         c = (p["x"] + 30, p["y"] + 55)
         cv2.circle(img, (c[0] + 12, c[1] - 15), 34, (0, 0, 255), -1)
         cv2.putText(

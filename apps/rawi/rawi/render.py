@@ -1,13 +1,13 @@
-"""Rendu motion comic : caméra case par case, projecteur, « pop » des bulles.
+"""Rendu motion comic : caméra case par case, projecteur, bulles qui apparaissent à la lecture.
 Dépendances : numpy, OpenCV, FFmpeg (binaire)."""
 
-import math
 import shutil
 import subprocess
 
 import cv2
 import numpy as np
 
+from .layers import build_layers
 from .project import bubble_reading_order
 
 FORMATS = {"9:16": (1080, 1920), "16:9": (1920, 1080), "1:1": (1080, 1080)}
@@ -54,42 +54,86 @@ def _matrix(rect, W, H, zoom=1.0, margin=0.92):
     return np.float32([[s, 0, W / 2 - s * cx], [0, s, H / 2 - s * cy]]), s
 
 
-def _bubble_pop(frame, img, M, b, t):
-    """Petit rebond de la bulle (agrandissement 1 → 1.07 → 1)."""
-    if not (0 <= t <= 0.45):
-        return
-    k = 1 + 0.07 * math.sin(math.pi * t / 0.45)
-    x, y, w, h = b["x"], b["y"], b["w"], b["h"]
-    crop = img[y : y + h, x : x + w]
+POP = 0.45  # s, duration of a bubble's appearance
+FIRST_BUBBLE = 0.25  # s into the panel before the first bubble appears
+BUBBLE_GAP = 0.9  # s between bubbles, shortened when the panel is short
+READ_TAIL = 1.2  # s left after the last bubble appears
+
+
+def _ease_out_back(t):
+    c = 1.7
+    t = min(max(t, 0.0), 1.0) - 1
+    return 1 + (c + 1) * t**3 + c * t**2
+
+
+def _draw_popping(frame, sprite, M, t):
+    """Draw a bubble appearing: scale 0.85 -> 1.0 with a slight overshoot, fading in."""
+    k = 0.85 + 0.15 * _ease_out_back(t)
+    fade = min(t / 0.3, 1.0)
+    h, w = sprite.alpha.shape
     s = M[0, 0] * k
     cw, ch = max(int(w * s), 2), max(int(h * s), 2)
-    crop = cv2.resize(crop, (cw, ch))
-    cx = M[0, 0] * (x + w / 2) + M[0, 2]
-    cy = M[1, 1] * (y + h / 2) + M[1, 2]
+    img = cv2.resize(sprite.image, (cw, ch), interpolation=cv2.INTER_LINEAR)
+    alpha = (
+        cv2.resize(sprite.alpha, (cw, ch), interpolation=cv2.INTER_LINEAR)[..., None]
+        * fade
+    )
+    cx = M[0, 0] * (sprite.x + w / 2) + M[0, 2]
+    cy = M[1, 1] * (sprite.y + h / 2) + M[1, 2]
     x0, y0 = int(cx - cw / 2), int(cy - ch / 2)
     H, W = frame.shape[:2]
-    mask = np.zeros((ch, cw), np.float32)
-    cv2.ellipse(
-        mask, (cw // 2, ch // 2), (int(cw * 0.47), int(ch * 0.47)), 0, 0, 360, 1, -1
-    )
-    mask = cv2.GaussianBlur(mask, (0, 0), max(cw, ch) * 0.02 + 1)[..., None]
     fx0, fy0, fx1, fy1 = max(x0, 0), max(y0, 0), min(x0 + cw, W), min(y0 + ch, H)
     if fx1 <= fx0 or fy1 <= fy0:
         return
-    c = crop[fy0 - y0 : fy1 - y0, fx0 - x0 : fx1 - x0].astype(np.float32)
-    m = mask[fy0 - y0 : fy1 - y0, fx0 - x0 : fx1 - x0]
+    c = img[fy0 - y0 : fy1 - y0, fx0 - x0 : fx1 - x0].astype(np.float32)
+    a = alpha[fy0 - y0 : fy1 - y0, fx0 - x0 : fx1 - x0]
     roi = frame[fy0:fy1, fx0:fx1].astype(np.float32)
-    frame[fy0:fy1, fx0:fx1] = (roi * (1 - m) + c * m).astype(np.uint8)
+    frame[fy0:fy1, fx0:fx1] = (roi * (1 - a) + c * a).astype(np.uint8)
+
+
+def bubble_schedule(n, hold):
+    """Seconds into a panel's hold at which each of its ``n`` bubbles starts to appear."""
+    if n == 0:
+        return []
+    gap = min(BUBBLE_GAP, max((hold - FIRST_BUBBLE - READ_TAIL) / n, 0.3))
+    return [FIRST_BUBBLE + k * gap for k in range(n)]
 
 
 def frames(page, fmt="9:16", fps=30, scale=1.0):
+    """Yield the frames of one page: overview, panel by panel, final overview.
+
+    The page is shown without its bubbles; each bubble appears in reading order while the
+    camera holds on its panel, then stays visible.
+    """
     img = cv2.imread(page["image"])
     W, H = (int(v * scale) // 2 * 2 for v in FORMATS[fmt])
     bg = _background(img, W, H)
+    rtl = page.get("rtl", False)
+    all_bubbles = [
+        {**b, "id": b.get("id") or f"b{i}-{k}"}
+        for i, p in enumerate(page["panels"])
+        for k, b in enumerate(p["bubbles"])
+    ]
+    layers = build_layers(img, all_bubbles)
+    ids_by_panel = {}
+    for i, p in enumerate(page["panels"]):
+        ids_by_panel[i] = [
+            b.get("id") or f"b{i}-{p['bubbles'].index(b)}"
+            for b in _ordered_bubbles(p["bubbles"], rtl)
+        ]
+    shown: set[str] = set()
+    cached = {"key": None, "img": None}
+
+    def current():
+        key = frozenset(shown)
+        if cached["key"] != key:
+            cached["key"], cached["img"] = key, layers.with_bubbles(shown)
+        return cached["img"]
+
     shots, tr = build_shots(page)
     prev = None
     for shot in shots:
-        # 1) transition depuis le plan précédent
+        # 1) transition from the previous shot
         if prev is not None:
             n = int(tr * fps)
             for f in range(n):
@@ -98,22 +142,30 @@ def frames(page, fmt="9:16", fps=30, scale=1.0):
                 M, _ = _matrix(
                     rect, W, H, zoom=1.0 + 0.05 * (1 - t) * (prev["panel"] is not None)
                 )
-                yield _compose(img, bg, M, W, H, None, 0.0)
-        # 2) maintien avec léger zoom avant (Ken Burns) + projecteur + pop des bulles
+                yield _compose(current(), bg, M, W, H, None, 0.0)
+        # 2) hold: slight zoom in (Ken Burns), spotlight, bubbles appearing
         n = int(shot["hold"] * fps)
         p = shot["panel"]
-        bubbles = _ordered_bubbles(p["bubbles"], page.get("rtl", False)) if p else []
+        ids = ids_by_panel[page["panels"].index(p)] if p is not None else []
+        starts = bubble_schedule(len(ids), shot["hold"])
+        if p is None and prev is not None:
+            shown.update(layers.sprites)  # final overview: the complete page
         for f in range(n):
             t = f / max(n - 1, 1)
+            sec = f / fps
             M, _ = _matrix(
                 shot["rect"], W, H, zoom=1.0 + 0.05 * ease(t) * (p is not None)
             )
+            for bubble_id, start in zip(ids, starts, strict=True):
+                if sec >= start + POP:
+                    shown.add(bubble_id)
             dim = min(f / (0.35 * fps), 1.0) * 0.6 if p else 0.0
-            fr = _compose(img, bg, M, W, H, p, dim)
-            sec = f / fps
-            for k, b in enumerate(bubbles):
-                _bubble_pop(fr, img, M, b, sec - 0.25 - k * 0.9)
+            fr = _compose(current(), bg, M, W, H, p, dim)
+            for bubble_id, start in zip(ids, starts, strict=True):
+                if start <= sec < start + POP and bubble_id in layers.sprites:
+                    _draw_popping(fr, layers.sprites[bubble_id], M, (sec - start) / POP)
             yield fr
+        shown.update(i for i in ids if i in layers.sprites)
         prev = shot
 
 

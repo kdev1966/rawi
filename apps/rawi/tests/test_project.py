@@ -68,7 +68,7 @@ V1 = {
 
 def test_migrate_v1_to_v2():
     data = project.migrate(copy.deepcopy(V1))
-    assert data["version"] == project.CURRENT_VERSION == 2
+    assert data["version"] == project.CURRENT_VERSION == 3
     bubbles = data["pages"][0]["panels"][0]["bubbles"]
     # right-to-left page: in the top row the right bubble comes first
     by_order = sorted(bubbles, key=lambda b: b["order"])
@@ -76,6 +76,7 @@ def test_migrate_v1_to_v2():
     assert [b["id"] for b in by_order] == ["p01-c01-b01", "p01-c01-b02", "p01-c01-b03"]
     for b in bubbles:
         assert b["text"] == "" and b["source"] is None and b["translations"] == {}
+        assert b["polygon"] is None  # outline unknown for migrated projects
         assert b["text_px"] > 0  # v1 fields kept
 
 
@@ -108,7 +109,7 @@ def test_migrate_is_idempotent_and_keeps_edits():
 @pytest.mark.parametrize(
     ("data", "message"),
     [
-        ({"version": 3, "pages": []}, "plus récente"),
+        ({"version": 99, "pages": []}, "plus récente"),
         ({"version": "1", "pages": []}, "invalide"),
         ({"pages": []}, "invalide"),
         ({"version": 1}, "pas un projet"),
@@ -124,7 +125,7 @@ def test_load_save_round_trip(tmp_path, capsys):
     path = tmp_path / "projet.json"
     path.write_text(json.dumps(V1), encoding="utf-8")
     data = project.load(path)
-    assert data["version"] == 2
+    assert data["version"] == 3
     assert "converti" in capsys.readouterr().err
     project.save(data, path)
     assert project.load(path) == data
@@ -149,7 +150,7 @@ def test_cli_writes_v2_and_reports_bad_project(
     cv2.imwrite("page.png", comic_page(600, 800))
     main(["analyser", "page.png"])
     data = json.loads((tmp_path / "projet.json").read_text(encoding="utf-8"))
-    assert data["version"] == 2
+    assert data["version"] == 3
     (tmp_path / "future.json").write_text(
         json.dumps({"version": 9, "pages": []}), encoding="utf-8"
     )

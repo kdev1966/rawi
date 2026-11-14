@@ -4,6 +4,8 @@ Version history:
 - 1 (v0.1): pages > panels > bubbles; a bubble is a box {x, y, w, h, text_px}.
 - 2 (M0): every bubble gets a stable id, an explicit reading order and text fields ready
   for OCR and translation (PRD §6.4). The renderer follows ``order``.
+- 3 (v0.2): every bubble gets ``polygon``, its real outline [[x, y], …] in page pixels
+  (None when unknown, e.g. migrated projects: the renderer then uses an ellipse in the box).
 """
 
 from __future__ import annotations
@@ -13,7 +15,7 @@ import os
 import sys
 from collections.abc import Callable
 
-CURRENT_VERSION = 2
+CURRENT_VERSION = 3
 BUBBLE_ROW_PX = 60  # bubbles whose tops are within the same 60 px band read as one row
 
 
@@ -29,6 +31,7 @@ def bubble_reading_order(bubbles: list[dict], rtl: bool) -> list[dict]:
 
 def _upgrade_bubble(b: dict, bubble_id: str, order: int) -> None:
     b.setdefault("id", bubble_id)
+    b.setdefault("polygon", None)
     b.setdefault("order", order)
     # "ocr" or "manual" once text exists; manual text is never overwritten
     b.setdefault("source", None)
@@ -56,7 +59,16 @@ def _v1_to_v2(data: dict) -> dict:
     return data
 
 
-MIGRATIONS: dict[int, Callable[[dict], dict]] = {1: _v1_to_v2}
+def _v2_to_v3(data: dict) -> dict:
+    for page in data.get("pages", []):
+        for panel in page.get("panels", []):
+            for b in panel.get("bubbles", []):
+                b.setdefault("polygon", None)
+    data["version"] = 3
+    return data
+
+
+MIGRATIONS: dict[int, Callable[[dict], dict]] = {1: _v1_to_v2, 2: _v2_to_v3}
 
 
 def migrate(data: dict) -> dict:
