@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 from rawi import subtitles
 from rawi.__main__ import main
-from rawi.render import bubble_timeline, frames
+from rawi.render import bubble_timeline, can_burn_subtitles, frames
 
 
 @pytest.mark.parametrize(
@@ -167,6 +167,9 @@ def test_cues_strip_names_skip_empty_and_chain_pages(tmp_path):
 @pytest.mark.skipif(
     not (shutil.which("ffmpeg") and shutil.which("ffprobe")), reason="FFmpeg absent"
 )
+@pytest.mark.skipif(
+    not can_burn_subtitles(), reason="FFmpeg sans libass (filtre subtitles absent)"
+)
 def test_render_writes_srt_and_burns_subtitles(tmp_path, monkeypatch):
     page = page_with_two_balloons(tmp_path)
     proj = {"version": 3, "rtl": False, "pages": [page]}
@@ -237,3 +240,29 @@ def test_render_writes_srt_and_burns_subtitles(tmp_path, monkeypatch):
         ).mean()
         > 0.5
     )
+
+
+def test_burn_falls_back_to_srt_without_libass(tmp_path, monkeypatch, capsys):
+    import rawi.__main__ as cli
+
+    if not shutil.which("ffmpeg"):
+        pytest.skip("FFmpeg absent")
+    page = page_with_two_balloons(tmp_path)
+    proj = {"version": 3, "rtl": False, "pages": [page]}
+    (tmp_path / "projet.json").write_text(
+        json.dumps(proj, ensure_ascii=False), encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "can_burn_subtitles", lambda: False)
+    args = [
+        "rendre",
+        "projet.json",
+        "--apercu",
+        "--fps",
+        "10",
+        "--sous-titres",
+        "incrustes",
+    ]
+    assert main(args) in (None, 0)
+    assert "libass" in capsys.readouterr().err
+    assert (tmp_path / "videos" / "episode_01_9x16.srt").is_file()

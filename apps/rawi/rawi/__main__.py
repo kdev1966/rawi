@@ -6,7 +6,7 @@ import time
 
 from . import project, subtitles
 from .analyze import analyze, draw_debug
-from .render import FORMATS, render
+from .render import FORMATS, can_burn_subtitles, render
 from .sources import InputError, expand_inputs
 from .text import read_page
 
@@ -81,10 +81,18 @@ def cmd_rendre(a, projet=None):
             else []
         )
         srt_path, burn, temporary = None, None, None
-        if items and a.sous_titres in ("srt", "les-deux"):
+        mode = a.sous_titres
+        if items and mode in ("incrustes", "les-deux") and not can_burn_subtitles():
+            print(
+                "Attention : ce FFmpeg ne sait pas incruster de sous-titres (libass absent) ; "
+                "fichier .srt écrit à la place.",
+                file=sys.stderr,
+            )
+            mode = "srt"
+        if items and mode in ("srt", "les-deux"):
             srt_path = os.path.splitext(out)[0] + ".srt"
             subtitles.write_srt(srt_path, items)
-        if items and a.sous_titres in ("incrustes", "les-deux"):
+        if items and mode in ("incrustes", "les-deux"):
             if srt_path is None:
                 fd, temporary = tempfile.mkstemp(suffix=".srt")
                 os.close(fd)

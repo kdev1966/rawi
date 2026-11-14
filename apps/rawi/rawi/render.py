@@ -226,6 +226,22 @@ def _compose(img, bg, M, W, H, panel, dim):
     return fr
 
 
+def can_burn_subtitles(ffmpeg=None):
+    """True if this FFmpeg has the libass ``subtitles`` filter (some builds, e.g. Homebrew's, do not)."""
+    ffmpeg = ffmpeg or shutil.which("ffmpeg")
+    if not ffmpeg:
+        return False
+    try:
+        out = subprocess.run(
+            [ffmpeg, "-hide_banner", "-filters"], capture_output=True, text=True
+        ).stdout
+    except OSError:
+        return False
+    return any(
+        line.split()[1:2] == ["subtitles"] for line in out.splitlines() if line.strip()
+    )
+
+
 def _encoder(ffmpeg, crf):
     """Choisit le meilleur encodeur H.264 disponible (libx264, sinon matériel Mac, sinon OpenH264)."""
     try:
@@ -280,13 +296,24 @@ def render(
         "+faststart",
         out,
     ]
+    if burn_srt and not can_burn_subtitles(ffmpeg):
+        raise RuntimeError(
+            "Ce FFmpeg ne sait pas incruster de sous-titres (bibliothèque libass absente). "
+            "Utilisez --sous-titres srt, ou installez FFmpeg par conda-forge."
+        )
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     count = 0
-    for page in pages:
-        for fr in frames(page, fmt, fps, scale):
-            proc.stdin.write(fr.tobytes())
-            count += 1
-    proc.stdin.close()
+    try:
+        for page in pages:
+            for fr in frames(page, fmt, fps, scale):
+                proc.stdin.write(fr.tobytes())
+                count += 1
+        proc.stdin.close()
+    except BrokenPipeError:  # FFmpeg stopped early: its own message is printed above
+        proc.wait()
+        raise RuntimeError(
+            "Échec de l'encodage FFmpeg (voir le message ci-dessus)"
+        ) from None
     proc.wait()
     if proc.returncode:
         raise RuntimeError("Échec de l'encodage FFmpeg")
