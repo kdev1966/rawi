@@ -385,7 +385,7 @@ Comportements attendus :
 
 **Avancement (14 novembre 2026)** — ordre validé par le porteur : 1) parallaxe par la profondeur, 2) reconstitution du décor (MI-GAN), 3) détourage (MobileSAM, clics), 4) éditeur local (serveur Python intégré, sans dépendance). Étape 1 faite : carte de profondeur par case (Depth Anything V2 Small, mise en cache par empreinte dans `calques/`), format de projet 4 ; pendant le plan, chaque pixel glisse selon sa profondeur (déformation douce, 6 % de la largeur au plus, aller-retour sans à-coup), bulles immobiles. `--profondeur non` pour s'en passer.
 
-Étape 2 faite (ADR 0007) : premier plan découpé par la profondeur (seuil d'Otsu, bulles exclues), décor caché reconstitué par MI-GAN (0,6 à 1,1 s par case), mis en cache dans `calques/` ; format de projet 5 ; au rendu, le premier plan glisse d'un bloc devant le décor. 45 cases Qahwati sur 48 ont des calques ; analyse complète 14 s par planche. Repli : la déformation de l'étape 1.
+Étape 2 faite (ADR 0007) : premier plan découpé par la profondeur (seuil d'Otsu, bulles exclues), décor caché reconstitué par MI-GAN (0,6 à 1,1 s par case), mis en cache dans `calques/` ; format de projet 5 ; au rendu, le premier plan glisse d'un bloc devant le décor. 45 cases Qahwati sur 48 ont des calques ; analyse complète 14 s par planche. Repli : la déformation de l'étape 1. **Retour du porteur** : personnages déformés et déchirés, car la découpe par la profondeur coupe les personnages en deux ; les calques sont donc désactivés par défaut (`--calques oui` pour les essayer) et seront réévalués avec les silhouettes MobileSAM (étape 3).
 
 | Tâche | Niveau 0 | Niveau 1 (par défaut) | Niveau 2 |
 |---|---|---|---|

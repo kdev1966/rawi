@@ -1,6 +1,6 @@
 # ADR 0007 — Parallaxe par calques : premier plan par la profondeur, décor rebâti par MI-GAN
 
-- **Statut** : accepté
+- **Statut** : accepté, désactivé par défaut (`--calques oui` pour l'essayer) en attendant le détourage MobileSAM
 - **Date** : 14 novembre 2026
 - **Décideur** : porteur du projet (ordre de la v0.3 ; étape 1 jugée « ça va »)
 
@@ -25,3 +25,9 @@ L'étape 1 de la v0.3 fait glisser chaque pixel selon sa profondeur (déformatio
 
 - Le premier plan est un seul bloc : plusieurs personnages à des profondeurs différentes glissent ensemble. Le détourage précis (étape 3, MobileSAM, clics) permettra plusieurs calques.
 - Reste à vérifier : les conditions du jeu Places2 ayant servi à entraîner MI-GAN.
+
+## Retour du porteur (14 novembre 2026)
+
+Sur les vidéos, les personnages sont déformés et déchirés. Cause vue sur les cases : le seuil d'Otsu sur la profondeur coupe les personnages en deux (tête devant, buste derrière ; main séparée du bras). La tête glisse seule et découvre le remplissage absurde de MI-GAN. Ce n'est pas réglable par un paramètre : il faut la silhouette entière d'un personnage.
+
+Décision : les calques passent derrière l'option `--calques oui` ; la déformation de l'étape 1 redevient le rendu par défaut. Les calques seront réévalués avec les masques MobileSAM (étape 3), qui donnent des objets entiers.

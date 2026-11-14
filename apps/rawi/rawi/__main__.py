@@ -79,7 +79,7 @@ def cmd_analyser(a):
     os.makedirs(a.controle, exist_ok=True)
     recognizer = _text_recognizer(a.ocr == "oui")
     estimator = _depth_estimator(a.profondeur == "oui")
-    inpainter = _inpainter(estimator is not None)
+    inpainter = _inpainter(estimator is not None and a.calques == "oui")
     calques = os.path.join(os.path.dirname(os.path.abspath(a.sortie)), "calques")
     for img in expand_inputs(a.images, a.dossier_pages, pages=a.pages, dpi=a.dpi):
         page = analyze(img, rtl=a.rtl, detection=a.detection)
@@ -195,6 +195,13 @@ def main(argv=None):
             default="oui",
             choices=["oui", "non"],
             help="profondeur des cases pour la parallaxe (télécharge le modèle au premier usage)",
+        )
+        p.add_argument(
+            "--calques",
+            default="non",
+            choices=["oui", "non"],
+            help="expérimental : premier plan détaché, décor rebâti par MI-GAN "
+            "(la découpe par la profondeur coupe encore les personnages)",
         )
         p.add_argument(
             "--ocr",
